@@ -25,9 +25,9 @@ class StorePurchaseHeaderRequest extends BaseApiRequest
     {
         return [
             //
-            'supplier_id' => 'required',
+            'supplier_id' => 'nullable|exists:suppliers,id',
             'date' => 'required|date',
-            'total' => 'required|numeric',
+            // 'total' => 'required|numeric',
             'type' => 'required',
         ];
     }
@@ -35,11 +35,11 @@ class StorePurchaseHeaderRequest extends BaseApiRequest
     public function messages(): array
     {
         return [
-            'supplier_id.required' => 'معرف المورد مطلوب',
+
             'date.required' => 'تاريخ الشراء مطلوب',
             'date.date' => 'تاريخ الشراء يجب ان يكون تاريخًا',
-            'total.required' => 'المبلغ الكلي مطلوب',
-            'total.numeric' => 'المبلغ الكلي يجب ان يكون رقمًا',
+            // 'total.required' => 'المبلغ الكلي مطلوب',
+            // 'total.numeric' => 'المبلغ الكلي يجب ان يكون رقمًا',
             'type.required' => 'نوع الشراء مطلوب',
         ];
     }

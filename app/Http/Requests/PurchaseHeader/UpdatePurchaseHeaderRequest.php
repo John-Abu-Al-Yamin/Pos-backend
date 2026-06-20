@@ -4,7 +4,6 @@ namespace App\Http\Requests\PurchaseHeader;
 
 use App\Http\Requests\BaseApiRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
 class UpdatePurchaseHeaderRequest extends BaseApiRequest
 {
@@ -25,9 +24,9 @@ class UpdatePurchaseHeaderRequest extends BaseApiRequest
     {
         return [
             //
-            'supplier_id' => 'sometimes|required',
+            'supplier_id' => 'sometimes|exists:suppliers,id',
             'date' => 'sometimes|required|date',
-            'total' => 'sometimes|required|numeric',
+            // 'total' => 'sometimes|required|numeric',
             'type' => 'sometimes|required',
         ];
     }
@@ -38,8 +37,8 @@ class UpdatePurchaseHeaderRequest extends BaseApiRequest
             'supplier_id.required' => 'معرف المورد مطلوب',
             'date.required' => 'تاريخ الشراء مطلوب',
             'date.date' => 'تاريخ الشراء يجب ان يكون تاريخًا',
-            'total.required' => 'المبلغ الكلي مطلوب',
-            'total.numeric' => 'المبلغ الكلي يجب ان يكون رقمًا',
+            // 'total.required' => 'المبلغ الكلي مطلوب',
+            // 'total.numeric' => 'المبلغ الكلي يجب ان يكون رقمًا',
             'type.required' => 'نوع الشراء مطلوب',
         ];
     }

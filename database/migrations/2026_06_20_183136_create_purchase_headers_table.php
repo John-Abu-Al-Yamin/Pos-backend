@@ -13,13 +13,13 @@ return new class extends Migration
     {
         Schema::create('purchase_headers', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('supplier_id')->constrained()->onDelete('cascade');
+            $table->foreignId('supplier_id')->nullable()->constrained()->nullOnDelete();
             $table->date('date');
-            $table->decimal('total', 8, 2);
-            $table->enum('type', ['purchase','opening_stock'])->default('purchase');
+            $table->decimal('total', 10, 2)->default(0);
+            $table->enum('type', ['purchase', 'opening_stock'])->default('purchase');
             $table->timestamps();
         });
-}
+    }
 
     /**
      * Reverse the migrations.
