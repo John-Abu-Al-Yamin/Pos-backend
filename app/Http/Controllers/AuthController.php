@@ -24,13 +24,7 @@ class AuthController extends Controller
 
             return ApiResponse::error(
                 message: 'بيانات الدخول غير صحيحة',
-                statusCode: 401,
-                errors: [
-                    [
-                        'field' => 'password',
-                        'message' => 'بيانات الدخول غير صحيحة',
-                    ],
-                ]
+                statusCode: 401
             );
         }
 
@@ -66,7 +60,7 @@ class AuthController extends Controller
         $data = $request->validated();
 
         $user = User::create([
-            'name' => $data['name'],
+            "name" => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'role' => 'employee', // Set the default role to 'employee'
