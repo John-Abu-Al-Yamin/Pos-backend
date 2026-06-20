@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\PurchaseHeaderController;
 use App\Http\Controllers\SupplierController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -47,6 +48,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/suppliers/{id}', [SupplierController::class, 'show']);
     Route::put('/suppliers/{id}', [SupplierController::class, 'update']);
     Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy']);
+
+    // Purchase Header routes
+    Route::get('/purchase-headers', [PurchaseHeaderController::class, 'index']);
+    Route::post('/purchase-headers', [PurchaseHeaderController::class, 'store']);
+    Route::get('/purchase-headers/{id}', [PurchaseHeaderController::class, 'show']);
+    Route::put('/purchase-headers/{id}', [PurchaseHeaderController::class, 'update']);
+    Route::delete('/purchase-headers/{id}', [PurchaseHeaderController::class, 'destroy']);
 
 
 

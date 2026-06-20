@@ -12,6 +12,11 @@ class Supplier extends Model
         'phone',
     ];
 
+    public function purchaseHeaders()
+    {
+        return $this->hasMany(PurchaseHeader::class);
+    }
+
     
     
 }
