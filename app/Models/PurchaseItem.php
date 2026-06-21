@@ -23,4 +23,9 @@ class PurchaseItem extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public function stockItems()
+    {
+        return $this->hasMany(StockItem::class);
+    }
 }

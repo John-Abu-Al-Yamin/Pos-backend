@@ -18,6 +18,7 @@ return new class extends Migration
             $table->integer('quantity');
             $table->decimal('unit_cost', 10, 2);
             $table->decimal('line_total', 10, 2);
+            $table->enum('condition', ['new', 'excellent', 'good', 'fair'])->default('new');
             $table->timestamps();
         });
     }

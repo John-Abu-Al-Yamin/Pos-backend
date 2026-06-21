@@ -5,6 +5,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseHeaderController;
 use App\Http\Controllers\PurchaseItemController;
+use App\Http\Controllers\StockItemController;
 use App\Http\Controllers\SupplierController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -63,6 +64,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/purchase-items/{id}', [PurchaseItemController::class, 'show']);
     Route::put('/purchase-items/{id}', [PurchaseItemController::class, 'update']);
     Route::delete('/purchase-items/{id}', [PurchaseItemController::class, 'destroy']);
+
+    // stock_items
+    Route::get('/stock-items', [StockItemController::class, 'index']);
+    Route::get('/stock-items/{id}', [StockItemController::class, 'show']);
+
 
 
 
