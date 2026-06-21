@@ -18,4 +18,9 @@ class PurchaseHeader extends Model
     {
         return $this->belongsTo(Supplier::class);
     }
+
+    public function purchaseItems()
+    {
+        return $this->hasMany(PurchaseItem::class);
+}
 }

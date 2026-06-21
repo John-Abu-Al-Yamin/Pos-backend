@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseHeaderController;
+use App\Http\Controllers\PurchaseItemController;
 use App\Http\Controllers\SupplierController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -23,7 +24,7 @@ Route::post("/login", [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
 
-// Authenticated routes
+    // Authenticated routes
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
@@ -55,6 +56,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/purchase-headers/{id}', [PurchaseHeaderController::class, 'show']);
     Route::put('/purchase-headers/{id}', [PurchaseHeaderController::class, 'update']);
     Route::delete('/purchase-headers/{id}', [PurchaseHeaderController::class, 'destroy']);
+
+    // Purchase Item routes
+    Route::get('/purchase-items', [PurchaseItemController::class, 'index']);
+    Route::post('/purchase-items', [PurchaseItemController::class, 'store']);
+    Route::get('/purchase-items/{id}', [PurchaseItemController::class, 'show']);
+    Route::put('/purchase-items/{id}', [PurchaseItemController::class, 'update']);
+    Route::delete('/purchase-items/{id}', [PurchaseItemController::class, 'destroy']);
+
+
 
 
 
