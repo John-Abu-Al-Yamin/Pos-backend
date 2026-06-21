@@ -12,6 +12,7 @@ class PurchaseItem extends Model
         'quantity',
         'unit_cost',
         'line_total',
+        'condition',
     ];
 
     public function purchaseHeader()

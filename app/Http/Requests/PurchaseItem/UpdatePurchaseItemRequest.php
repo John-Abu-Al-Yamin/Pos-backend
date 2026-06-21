@@ -19,6 +19,7 @@ class UpdatePurchaseItemRequest extends BaseApiRequest
             'product_id' => 'sometimes|exists:products,id',
             'quantity' => 'sometimes|integer|min:1',
             'unit_cost' => 'sometimes|numeric|min:0',
+            'condition' => 'nullable|in:new,excellent,good,fair',
         ];
     }
 }

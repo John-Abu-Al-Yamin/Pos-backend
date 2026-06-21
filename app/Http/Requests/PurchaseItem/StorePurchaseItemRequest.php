@@ -19,6 +19,7 @@ class StorePurchaseItemRequest extends BaseApiRequest
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1',
             'unit_cost' => 'required|numeric|min:0',
+            'condition' => 'nullable|in:new,excellent,good,fair',
         ];
     }
 }

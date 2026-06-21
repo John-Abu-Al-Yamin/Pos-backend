@@ -6,10 +6,15 @@ use App\Http\Requests\PurchaseItem\StorePurchaseItemRequest;
 use App\Http\Requests\PurchaseItem\UpdatePurchaseItemRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\PurchaseItem;
+use App\Services\StockItemService;
 use Illuminate\Http\Request;
 
 class PurchaseItemController extends Controller
 {
+    public function __construct(
+        private readonly StockItemService $stockItemService
+    ) {}
+
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
@@ -27,7 +32,8 @@ class PurchaseItemController extends Controller
         $data['line_total'] = $data['quantity'] * $data['unit_cost'];
 
         $item = PurchaseItem::create($data);
-        $item->load(['purchaseHeader', 'product']);
+        $this->stockItemService->createFromPurchaseItem($item);
+        $item->load(['purchaseHeader', 'product', 'stockItems']);
 
         return ApiResponse::success(
             message: 'تم إنشاء عنصر الشراء بنجاح',
