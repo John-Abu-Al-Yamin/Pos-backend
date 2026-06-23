@@ -21,16 +21,18 @@ class PurchaseHeaderController extends Controller
             data: $purchaseHeader
         );
     }
+public function index(Request $request)
+{
+    $perPage = (int) $request->input('per_page', 10);
 
-    public function index(Request $request)
-    {
-        $perPage = (int) $request->input('per_page', 10);
-        $purchaseHeaders = PurchaseHeader::paginate($perPage);
-        return ApiResponse::success(
-            message: 'تم جلب الشراء بنجاح',
-            data: $purchaseHeaders
-        );
-    }
+    $purchaseHeaders = PurchaseHeader::with('supplier')
+        ->paginate($perPage);
+
+    return ApiResponse::success(
+        message: 'تم جلب الشراء بنجاح',
+        data: $purchaseHeaders
+    );
+}
 
     public function show(int $id)
     {

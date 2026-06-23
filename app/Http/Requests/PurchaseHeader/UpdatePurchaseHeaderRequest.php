@@ -23,11 +23,10 @@ class UpdatePurchaseHeaderRequest extends BaseApiRequest
     public function rules(): array
     {
         return [
-            //
             'supplier_id' => 'sometimes|exists:suppliers,id',
             'date' => 'sometimes|required|date',
-            // 'total' => 'sometimes|required|numeric',
-            'type' => 'sometimes|required',
+            'type' => 'sometimes|required|in:purchase,opening_stock',
+            'reference' => 'nullable|string|max:255',
         ];
     }
 
@@ -37,9 +36,10 @@ class UpdatePurchaseHeaderRequest extends BaseApiRequest
             'supplier_id.required' => 'معرف المورد مطلوب',
             'date.required' => 'تاريخ الشراء مطلوب',
             'date.date' => 'تاريخ الشراء يجب ان يكون تاريخًا',
-            // 'total.required' => 'المبلغ الكلي مطلوب',
-            // 'total.numeric' => 'المبلغ الكلي يجب ان يكون رقمًا',
             'type.required' => 'نوع الشراء مطلوب',
+            'type.in' => 'نوع الشراء يجب ان يكون purchase أو opening_stock',
+            'reference.string' => 'المرجع يجب ان يكون نصًا',
+            'reference.max' => 'المرجع يجب ان لا يتجاوز 255 حرفًا',
         ];
     }
 }

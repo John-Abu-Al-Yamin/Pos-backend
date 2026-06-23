@@ -33,7 +33,7 @@ Schema::create('categories', function (Blueprint $table) {
 ```php
 Schema::create('products', function (Blueprint $table) {
     $table->id();
-    $table->foreignId('category_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('category_id')->constrained()->onDelete('cascade');
     $table->string('name');
     $table->boolean('is_serialized')->default(true); // true = mobile, false = accessory
     $table->timestamps();
@@ -70,6 +70,8 @@ Schema::create('suppliers', function (Blueprint $table) {
 Schema::create('purchase_headers', function (Blueprint $table) {
     $table->id();
     $table->foreignId('supplier_id')->nullable()->constrained()->nullOnDelete();
+    $table->string('reference')->nullable();
+    $table->string('reference_code')->nullable();
     $table->date('date');
     $table->decimal('total', 10, 2)->default(0);
     $table->enum('type', ['purchase', 'opening_stock'])->default('purchase');
@@ -77,13 +79,15 @@ Schema::create('purchase_headers', function (Blueprint $table) {
 });
 ```
 
-| Column      | Type            | Notes                     |
-| ----------- | --------------- | ------------------------- |
-| id          | bigint PK       |                           |
-| supplier_id | FK → suppliers? | nullable, nullOnDelete    |
-| date        | date            | Purchase date             |
-| total       | decimal(10,2)   | Total cost, defaults to 0 |
-| type        | enum            | purchase / opening_stock  |
+| Column         | Type            | Notes                                |
+| -------------- | --------------- | ------------------------------------ |
+| id             | bigint PK       |                                      |
+| supplier_id    | FK → suppliers? | nullable, nullOnDelete               |
+| reference      | string nullable | Optional external reference/document |
+| reference_code | string nullable | Auto-generated (e.g. `BY-PURCHASE-2026-0001`) |
+| date           | date            | Purchase date                        |
+| total          | decimal(10,2)   | Total cost (recalculated from line items) |
+| type           | enum            | purchase / opening_stock             |
 
 ### 1.5 Purchase Items (Line Items)
 
@@ -107,7 +111,7 @@ Schema::create('purchase_items', function (Blueprint $table) {
 | product_id         | FK → products         | Which catalog item was bought    |
 | quantity           | integer               | Number of units                  |
 | unit_cost          | decimal(10,2)         | Cost per unit from supplier      |
-| line_total         | decimal(10,2)         | quantity × unit_cost             |
+| line_total         | decimal(10,2)         | quantity × unit_cost (calculated server-side) |
 | condition          | enum                  | new / excellent / good / fair    |
 
 ### 1.6 Stock Items (Individual Units)
@@ -142,6 +146,8 @@ Schema::create('stock_items', function (Blueprint $table) {
 ```php
 class Category extends Model
 {
+    protected $fillable = ['name'];
+
     public function products() { return $this->hasMany(Product::class); }
 }
 
@@ -156,18 +162,60 @@ class Product extends Model
 
 class Supplier extends Model
 {
+    protected $fillable = ['name', 'phone'];
+
     public function purchaseHeaders() { return $this->hasMany(PurchaseHeader::class); }
 }
 
 class PurchaseHeader extends Model
 {
-    public function supplier()     { return $this->belongsTo(Supplier::class); }
-    public function purchaseItems(){ return $this->hasMany(PurchaseItem::class); }
+    protected $fillable = [
+        'supplier_id', 'date', 'total', 'type',
+        'reference', 'reference_code',
+    ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (PurchaseHeader $purchaseHeader) {
+            if (empty($purchaseHeader->reference_code)) {
+                $purchaseHeader->reference_code = static::generateReferenceCode($purchaseHeader->type);
+            }
+        });
+    }
+
+    public static function generateReferenceCode(string $type): string
+    {
+        $year = now()->year;
+        $typeCode = Str::upper(Str::replace(' ', '_', $type));
+        $prefix = "BY-{$typeCode}-{$year}-";
+
+        $lastRecord = static::where('reference_code', 'like', "{$prefix}%")
+            ->orderBy('reference_code', 'desc')
+            ->first();
+
+        $nextNumber = $lastRecord
+            ? (int) Str::afterLast($lastRecord->reference_code, '-') + 1
+            : 1;
+
+        return $prefix . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
+    }
+
+    public function supplier()        { return $this->belongsTo(Supplier::class); }
+    public function purchaseItems()   { return $this->hasMany(PurchaseItem::class); }
+
+    public function recalculateTotal(): void
+    {
+        $this->total = $this->purchaseItems()->sum('line_total');
+        $this->saveQuietly();
+    }
 }
 
 class PurchaseItem extends Model
 {
-    protected $fillable = ['purchase_header_id', 'product_id', 'quantity', 'unit_cost', 'line_total', 'condition'];
+    protected $fillable = [
+        'purchase_header_id', 'product_id', 'quantity',
+        'unit_cost', 'line_total', 'condition',
+    ];
 
     public function purchaseHeader() { return $this->belongsTo(PurchaseHeader::class); }
     public function product()        { return $this->belongsTo(Product::class); }
@@ -176,7 +224,15 @@ class PurchaseItem extends Model
 
 class StockItem extends Model
 {
-    protected $fillable = ['product_id', 'purchase_item_id', 'serial_number', 'cost_price', 'condition', 'status'];
+    protected $fillable = [
+        'product_id', 'purchase_item_id', 'serial_number',
+        'cost_price', 'condition', 'status',
+    ];
+
+    protected function casts(): array
+    {
+        return ['cost_price' => 'decimal:2'];
+    }
 
     public function product()      { return $this->belongsTo(Product::class); }
     public function purchaseItem() { return $this->belongsTo(PurchaseItem::class); }
@@ -196,6 +252,7 @@ Step 3   Define supplier          → POST /api/suppliers
 Step 4   Create purchase header   → POST /api/purchase-headers
 Step 5   Add purchase items       → POST /api/purchase-items
 Step 6   System generates stock_items  → 1 row per unit (via StockItemService)
+Step 7   Purchase header total    → recalculated automatically from line items
 ```
 
 ### 3.2 API Request: Create Purchase Header
@@ -208,8 +265,8 @@ POST /api/purchase-headers
 {
     "supplier_id": 1,
     "date": "2026-06-20",
-    "total": 135000.0,
-    "type": "purchase"
+    "type": "purchase",
+    "reference": "INV-2026-001"
 }
 ```
 
@@ -217,8 +274,11 @@ POST /api/purchase-headers
 | ----------- | ------------------------------------------- |
 | supplier_id | The supplier providing the stock (nullable) |
 | date        | Purchase date                               |
-| total       | Total cost of the purchase                  |
 | type        | `purchase` or `opening_stock`               |
+| reference   | (optional) External reference or document number |
+
+**Auto-generated fields:**
+- `reference_code`: Automatically generated on create using format `BY-{TYPE}-{YEAR}-{NNNN}` (e.g. `BY-PURCHASE-2026-0001`).
 
 ### 3.3 API: Purchase Items CRUD
 
@@ -248,11 +308,16 @@ POST /api/purchase-items
 | unit_cost          | Price per unit from supplier             |
 | condition          | (optional) new / excellent / good / fair |
 
-**StockItems generated automatically:**
-- **Mobile** (`is_serialized = true`): Each unit gets a unique serial number (e.g. `SN-0001-20260621-A7X2`) via `SerialNumberService`.
-- **Accessory** (`is_serialized = false`): `serial_number` is left `null`.
-- `condition` is copied from the purchase item to each stock item.
-- Response includes the `stockItems` relation.
+**What happens on create:**
+1. `line_total` is calculated as `quantity × unit_cost`.
+2. The purchase item is persisted.
+3. `StockItemService::createFromPurchaseItem()` generates one stock item per unit:
+   - **Mobile** (`is_serialized = true`): Each unit gets a unique serial number (e.g. `SN-0001-20260621-A7X2`) via `SerialNumberService`.
+   - **Accessory** (`is_serialized = false`): `serial_number` is left `null`.
+   - `condition` is copied from the purchase item to each stock item.
+   - `status` defaults to `'available'`.
+4. `PurchaseHeader::recalculateTotal()` updates the header's total from all line items.
+5. Response includes the `stockItems` relation.
 
 #### Read
 
@@ -275,7 +340,7 @@ PUT /api/purchase-items/{id}
 }
 ```
 
-`line_total` recalculated automatically when `quantity` or `unit_cost` changes. Partial update supported.
+`line_total` recalculated automatically when `quantity` or `unit_cost` changes. Partial update supported. The parent purchase header's `total` is also recalculated after update.
 
 > **Note:** Updating a purchase item does **not** retroactively modify already-created stock items.
 
@@ -285,29 +350,29 @@ PUT /api/purchase-items/{id}
 DELETE /api/purchase-items/{id}
 ```
 
-### 3.4 Stock Items CRUD
+Deleting a purchase item also recalculates the parent purchase header's total.
 
-| Method   | Endpoint                | Description     |
-| -------- | ----------------------- | --------------- |
-| GET      | `/api/stock-items`      | Paginated list  |
-| POST     | `/api/stock-items`      | Create manually |
-| GET      | `/api/stock-items/{id}` | Single item     |
-| PUT      | `/api/stock-items/{id}` | Update item     |
-| DELETE   | `/api/stock-items/{id}` | Delete item     |
+### 3.4 Stock Items
 
-Manually creating a stock item via `POST /api/stock-items` also auto-generates the serial number when the product is serialized and no `serial_number` is provided.
+| Method | Endpoint                 | Description  |
+| ------ | ------------------------ | ------------ |
+| GET    | `/api/stock-items`       | Paginated list |
+| GET    | `/api/stock-items/{id}`  | Single item  |
+
+Stock items are primarily created automatically via `StockItemService` when purchase items are created. Only read (index/show) endpoints are exposed through the API — manual creation, update, or deletion of stock items is not available via API.
 
 ### 3.5 Validation Rules
 
 #### Purchase Header
 
-| Field       | Rule                            |
-| ----------- | ------------------------------- |
-| supplier_id | `nullable\|exists:suppliers,id` |
-| date        | `required\|date`                |
-| type        | `required`                      |
+| Field        | Rule                            |
+| ------------ | ------------------------------- |
+| supplier_id  | `nullable\|exists:suppliers,id` |
+| date         | `required\|date`                |
+| type         | `required\|in:purchase,opening_stock` |
+| reference    | `nullable\|string\|max:255`     |
 
-> **Note:** `total` is not currently validated (auto-calculated or set in controller logic).
+> **Note:** `total` is not accepted from the client. It is recalculated automatically from line items via `PurchaseHeader::recalculateTotal()`.
 
 #### Purchase Item
 
@@ -337,7 +402,7 @@ Manually creating a stock item via `POST /api/stock-items` also auto-generates t
 | Field         | Rule                            |
 | ------------- | ------------------------------- |
 | name          | `required\|string`              |
-| category_id   | `required\|exists:categories,id`|
+| category_id   | `required`                      |
 | is_serialized | `boolean`                       |
 
 ### 3.6 API Request: Opening Stock
@@ -348,7 +413,6 @@ Uses the same endpoint with `type: opening_stock` and `supplier_id` omitted (nul
 POST /api/purchase-headers
 {
   "date": "2026-06-20",
-  "total": 0,
   "type": "opening_stock"
 }
 ```
@@ -358,7 +422,14 @@ POST /api/purchase-headers
 ## 4. API Routes
 
 ```php
+// PUBLIC
+Route::post('/login', [AuthController::class, 'login']);
+
+// AUTHENTICATED
 Route::middleware('auth:sanctum')->group(function () {
+
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/me', [AuthController::class, 'me']);
 
     // Categories
     Route::get('/categories', [CategoryController::class, 'index']);
@@ -395,12 +466,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/purchase-items/{id}', [PurchaseItemController::class, 'update']);
     Route::delete('/purchase-items/{id}', [PurchaseItemController::class, 'destroy']);
 
-    // Stock Items
+    // Stock Items (read-only via API)
     Route::get('/stock-items', [StockItemController::class, 'index']);
-    Route::post('/stock-items', [StockItemController::class, 'store']);
     Route::get('/stock-items/{id}', [StockItemController::class, 'show']);
-    Route::put('/stock-items/{id}', [StockItemController::class, 'update']);
-    Route::delete('/stock-items/{id}', [StockItemController::class, 'destroy']);
+
+    // Admin-only
+    Route::middleware('admin')->prefix('admin')->group(function () {
+        Route::post('/create-user', [AuthController::class, 'createUser']);
+    });
 });
 ```
 
@@ -423,6 +496,18 @@ Uses a `do-while` loop to guarantee uniqueness against existing `stock_items.ser
 
 Handles all stock item creation logic. Located at `app/Services/StockItemService.php`.
 
+Uses constructor injection for `SerialNumberService`:
+
+```php
+class StockItemService
+{
+    public function __construct(
+        private readonly SerialNumberService $serialNumberService
+    ) {}
+    // ...
+}
+```
+
 #### `createFromPurchaseItem(PurchaseItem $purchaseItem)`
 
 Called automatically when a purchase item is created:
@@ -433,6 +518,10 @@ Called automatically when a purchase item is created:
 4. For **accessories** (`is_serialized = false`): leaves `serial_number = null`.
 5. Copies `condition` from the purchase item to each stock item.
 6. Sets `cost_price = unit_cost` and `status = 'available'`.
+
+### 5.3 Total Recalculation
+
+`PurchaseHeader::recalculateTotal()` is called after any purchase item is created, updated, or deleted. It sums the `line_total` of all associated purchase items and saves the result quietly.
 
 ---
 
@@ -449,3 +538,5 @@ Called automatically when a purchase item is created:
 | Opening stock        | `purchase_headers.type = 'opening_stock'` | Initial inventory, same flow                          |
 | Serial number gen.   | `SerialNumberService`                     | Auto-generates unique IMEI-like codes for mobiles     |
 | Stock item creation  | `StockItemService`                        | Creates stock items from purchase items with all logic |
+| Reference code       | `PurchaseHeader::generateReferenceCode()` | Auto-generates `BY-{TYPE}-{YEAR}-{NNNN}` on create    |
+| Total recalculation  | `PurchaseHeader::recalculateTotal()`      | Updates header total from line item sums              |

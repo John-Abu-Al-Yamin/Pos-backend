@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\PurchaseItem\StorePurchaseItemRequest;
 use App\Http\Requests\PurchaseItem\UpdatePurchaseItemRequest;
 use App\Http\Responses\ApiResponse;
+use App\Models\PurchaseHeader;
 use App\Models\PurchaseItem;
 use App\Services\StockItemService;
 use Illuminate\Http\Request;
@@ -34,6 +35,7 @@ class PurchaseItemController extends Controller
         $item = PurchaseItem::create($data);
         $this->stockItemService->createFromPurchaseItem($item);
         $item->load(['purchaseHeader', 'product', 'stockItems']);
+        $item->purchaseHeader->recalculateTotal();
 
         return ApiResponse::success(
             message: 'تم إنشاء عنصر الشراء بنجاح',
@@ -80,6 +82,7 @@ class PurchaseItemController extends Controller
 
         $item->update($data);
         $item->load(['purchaseHeader', 'product']);
+        $item->purchaseHeader->recalculateTotal();
 
         return ApiResponse::success(
             message: 'تم تحديث عنصر الشراء بنجاح',
@@ -98,7 +101,9 @@ class PurchaseItemController extends Controller
             );
         }
 
+        $headerId = $item->purchase_header_id;
         $item->delete();
+        PurchaseHeader::find($headerId)?->recalculateTotal();
 
         return ApiResponse::success(
             message: 'تم حذف عنصر الشراء بنجاح'

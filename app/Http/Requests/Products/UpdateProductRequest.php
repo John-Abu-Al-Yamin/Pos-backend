@@ -27,6 +27,7 @@ class UpdateProductRequest extends BaseApiRequest
             //
             'name' => 'sometimes|required|string',
             'category_id' => 'sometimes|required',
+            'is_serialized' => 'sometimes|boolean',
         ];
     }
 
@@ -36,7 +37,7 @@ class UpdateProductRequest extends BaseApiRequest
             'name.required' => 'اسم المنتج مطلوب',
             'name.string' => 'اسم المنتج يجب أن يكون نصًا',
             'category_id.required' => 'معرف الفئة مطلوب',
-
+            'is_serialized.boolean' => 'يجب اختيار نوع المنتج (موبايل أو إكسسوار)',
         ];
     }
 }

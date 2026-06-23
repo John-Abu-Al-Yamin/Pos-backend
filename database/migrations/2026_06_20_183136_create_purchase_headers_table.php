@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('purchase_headers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('supplier_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('reference')->nullable();
+            $table->string('reference_code')->nullable();
             $table->date('date');
             $table->decimal('total', 10, 2)->default(0);
             $table->enum('type', ['purchase', 'opening_stock'])->default('purchase');

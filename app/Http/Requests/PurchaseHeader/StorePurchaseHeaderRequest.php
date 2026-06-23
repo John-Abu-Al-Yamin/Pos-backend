@@ -24,23 +24,22 @@ class StorePurchaseHeaderRequest extends BaseApiRequest
     public function rules(): array
     {
         return [
-            //
             'supplier_id' => 'nullable|exists:suppliers,id',
             'date' => 'required|date',
-            // 'total' => 'required|numeric',
-            'type' => 'required',
+            'type' => 'required|in:purchase,opening_stock',
+            'reference' => 'nullable|string|max:255',
         ];
     }
 
     public function messages(): array
     {
         return [
-
             'date.required' => 'تاريخ الشراء مطلوب',
             'date.date' => 'تاريخ الشراء يجب ان يكون تاريخًا',
-            // 'total.required' => 'المبلغ الكلي مطلوب',
-            // 'total.numeric' => 'المبلغ الكلي يجب ان يكون رقمًا',
             'type.required' => 'نوع الشراء مطلوب',
+            'type.in' => 'نوع الشراء يجب ان يكون purchase أو opening_stock',
+            'reference.string' => 'المرجع يجب ان يكون نصًا',
+            'reference.max' => 'المرجع يجب ان لا يتجاوز 255 حرفًا',
         ];
     }
 }
