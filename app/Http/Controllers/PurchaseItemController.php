@@ -2,19 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\PurchaseItemUpdateException;
 use App\Http\Requests\PurchaseItem\StorePurchaseItemRequest;
 use App\Http\Requests\PurchaseItem\UpdatePurchaseItemRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\Product;
 use App\Models\PurchaseHeader;
 use App\Models\PurchaseItem;
+use App\Models\StockItem;
+use App\Services\PurchaseItemUpdateService;
 use App\Services\StockItemService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PurchaseItemController extends Controller
 {
     public function __construct(
-        private readonly StockItemService $stockItemService
+        private readonly StockItemService $stockItemService,
+        private readonly PurchaseItemUpdateService $purchaseItemUpdateService,
     ) {}
 
     public function index(Request $request)
@@ -80,26 +85,25 @@ class PurchaseItemController extends Controller
 
         $data = $request->validated();
 
-        $productId = $data['product_id'] ?? $item->product_id;
-        $product = Product::findOrFail($productId);
-        if (!$product->is_serialized) {
-            $data['condition'] = 'new';
+        try {
+            $result = $this->purchaseItemUpdateService->update($item, $data);
+
+            $response = ApiResponse::success(
+                message: 'تم تحديث عنصر الشراء بنجاح',
+                data: $result['item'],
+            );
+
+            if (!empty($result['messages'])) {
+                $response->setData($response->getData(true) + ['update_messages' => $result['messages']]);
+            }
+
+            return $response;
+        } catch (PurchaseItemUpdateException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 409
+            );
         }
-
-        if (isset($data['quantity']) || isset($data['unit_cost'])) {
-            $quantity = $data['quantity'] ?? $item->quantity;
-            $unitCost = $data['unit_cost'] ?? $item->unit_cost;
-            $data['line_total'] = $quantity * $unitCost;
-        }
-
-        $item->update($data);
-        $item->load(['purchaseHeader', 'product']);
-        $item->purchaseHeader->recalculateTotal();
-
-        return ApiResponse::success(
-            message: 'تم تحديث عنصر الشراء بنجاح',
-            data: $item
-        );
     }
 
     public function destroy(int $id)
@@ -113,9 +117,17 @@ class PurchaseItemController extends Controller
             );
         }
 
-        $headerId = $item->purchase_header_id;
-        $item->delete();
-        PurchaseHeader::find($headerId)?->recalculateTotal();
+        DB::transaction(function () use ($item) {
+            $lockedItem = PurchaseItem::lockForUpdate()->findOrFail($item->id);
+
+            StockItem::where('purchase_item_id', $lockedItem->id)
+                ->lockForUpdate()
+                ->delete();
+
+            $headerId = $lockedItem->purchase_header_id;
+            $lockedItem->delete();
+            PurchaseHeader::find($headerId)?->recalculateTotal();
+        });
 
         return ApiResponse::success(
             message: 'تم حذف عنصر الشراء بنجاح'

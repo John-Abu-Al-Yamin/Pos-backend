@@ -124,7 +124,7 @@ Schema::create('stock_items', function (Blueprint $table) {
     $table->string('serial_number')->nullable()->unique();
     $table->decimal('cost_price', 10, 2);
     $table->enum('condition', ['new', 'excellent', 'good', 'fair'])->default('new');
-    $table->enum('status', ['available', 'sold', 'reserved', 'damaged', 'returned'])->default('available');
+    $table->enum('status', ['available', 'sold', 'reserved', 'damaged', 'returned', 'voided'])->default('available');
     $table->timestamps();
 });
 ```
@@ -137,7 +137,9 @@ Schema::create('stock_items', function (Blueprint $table) {
 | serial_number    | string unique?        | Auto-generated for mobiles, null for accessories |
 | cost_price       | decimal(10,2)         | Unit cost from supplier                     |
 | condition        | enum                  | new / excellent / good / fair               |
-| status           | enum                  | available / sold / reserved / damaged / returned |
+| status           | enum                  | available / sold / reserved / damaged / returned / **voided** |
+
+> The `voided` status was added via migration `2026_06_24_000001_add_voided_status_to_stock_items.php` but is currently unused. Quantity reductions now hard-delete excess stock items rather than setting `status = 'voided'`.
 
 ---
 
@@ -343,11 +345,36 @@ PUT /api/purchase-items/{id}
 }
 ```
 
-`line_total` recalculated automatically when `quantity` or `unit_cost` changes. Partial update supported. The parent purchase header's `total` is also recalculated after update.
+Updating a purchase item triggers **transactional stock-item reconciliation** via `PurchaseItemUpdateService`. All changes — quantity, cost, condition, and header total recalculation — happen atomically within a single database transaction with row-level locking (`SELECT ... FOR UPDATE`) to prevent race conditions.
 
-> **Note:** Updating a purchase item does **not** retroactively modify already-created stock items.
->
-> **Note:** If the product (current or changed) is an accessory (`is_serialized = false`), `condition` is always forced to `'new'` regardless of what the client sends.
+**Behavior by field:**
+
+| Field changed | What happens to stock_items |
+|---|---|
+| `unit_cost` | Existing `available` stock_items get their `cost_price` updated to the new value. `sold`/`reserved`/`damaged`/`returned` items are **not** modified (retroactively changing COGS on completed transactions is prevented). If all units are already non-available, the purchase_item record updates but no stock_items change — the response communicates this. |
+| `condition` | Same propagation rule as cost — only `available` stock_items are updated. For accessories (`is_serialized = false`), `condition` is always forced to `'new'` regardless of input. |
+| `quantity` (increase) | New stock_items are generated using the *current* `unit_cost` and `condition` at the time of edit (not the original values). Serialized products get new unique serial numbers. |
+| `quantity` (decrease — enough available) | The required number of `available` stock_items are **hard-deleted** from the database. The most-recently-created items are removed first (deterministic, by `id DESC`). |
+| `quantity` (decrease — NOT enough available) | **Request is rejected** with HTTP 409 and a specific error: "Cannot reduce quantity to N — X unit(s) need to be removed, but only Y are available. Minimum quantity is Z." `damaged` and `returned` items are treated as non-removable (they represent historical events, not removable stock). |
+| `product_id` | Blocked — the product on a purchase item with existing stock_items cannot be changed. |
+
+**Combined edits** (e.g. `unit_cost` + `quantity` increase in one request): all rules apply together inside the same transaction. Newly created stock_items get the new cost; existing `available` items also get the new cost; existing moved items are untouched.
+
+**Partial-success response:** When a field change only partially applies (e.g. cost updated on 7 available units, 3 sold units left unchanged), the response includes an `update_messages` array that explicitly lists what happened:
+
+```json
+{
+    "success": true,
+    "status": 200,
+    "message": "تم تحديث عنصر الشراء بنجاح",
+    "data": { ... },
+    "update_messages": [
+        "cost updated on 7 available unit(s); 3 non-available unit(s) left unchanged."
+    ]
+}
+```
+
+The parent header's `total` is recalculated inside the same transaction after the item update.
 
 #### Delete
 
@@ -355,7 +382,9 @@ PUT /api/purchase-items/{id}
 DELETE /api/purchase-items/{id}
 ```
 
-Deleting a purchase item also recalculates the parent purchase header's total.
+Deleting a purchase item **hard-deletes all associated stock_items** inside a transaction with row-level locking (`SELECT ... FOR UPDATE`), regardless of their status. There is no deletion guard — any purchase item can be deleted at any time.
+
+The parent purchase header's total is recalculated in the same transaction after the deletion.
 
 ### 3.4 Stock Items
 
@@ -402,7 +431,7 @@ Stock items are primarily created automatically via `StockItemService` when purc
 | serial_number     | `nullable\|string\|unique:stock_items,serial_number` |
 | cost_price        | `required\|numeric\|min:0`                         |
 | condition         | `nullable\|in:new,excellent,good,fair`             |
-| status            | `nullable\|in:available,sold,reserved,damaged,returned` |
+| status            | `nullable\|in:available,sold,reserved,damaged,returned,voided` |
 
 #### Product
 
@@ -527,24 +556,61 @@ Called automatically when a purchase item is created. Returns the number of stoc
 6. Sets `cost_price = unit_cost` and `status = 'available'`.
 7. Performs a single bulk `StockItem::insert()` for all records (1 query regardless of quantity).
 
-### 5.3 Total Recalculation
+### 5.3 PurchaseItemUpdateService
 
-`PurchaseHeader::recalculateTotal()` is called after any purchase item is created, updated, or deleted. It sums the `line_total` of all associated purchase items and saves the result quietly.
+Handles the transactional update of purchase items with stock-item reconciliation. Located at `app/Services/PurchaseItemUpdateService.php`.
+
+Injects `SerialNumberService` for generating serials on quantity increases:
+
+```php
+class PurchaseItemUpdateService
+{
+    public function __construct(
+        private readonly SerialNumberService $serialNumberService
+    ) {}
+    // ...
+}
+```
+
+#### `update(PurchaseItem $item, array $data): array`
+
+Called by `PurchaseItemController@update`. Returns an array with the updated `item` and a `messages` array for partial-success communication.
+
+**Internal flow (all inside a single DB transaction):**
+
+1. **Row-level lock**: Re-reads the purchase_item with `lockForUpdate()` to get latest values and prevent concurrent-write races. Also locks all associated stock_items.
+
+2. **Quantity decrease (if applicable)**: Checks if enough `available` stock_items exist. If not, throws `PurchaseItemUpdateException` (caught in the controller as HTTP 409). Otherwise, hard-deletes the required number of items (most-recently-created first by `id DESC`).
+
+3. **Quantity increase (if applicable)**: Generates new stock_items using the *current* `unit_cost` and `condition` (supplied in the request). Reuses `SerialNumberService` for serialized products; bulk-inserts via `StockItem::insert()`.
+
+4. **Cost/condition propagation (if applicable)**: Updates `cost_price` and/or `condition` on `available` stock_items only. `sold`/`reserved`/`damaged`/`returned` items are never modified.
+
+5. **Purchase item update**: Persists the new `quantity`, `unit_cost`, `condition`, and `line_total` on the purchase_item record.
+
+6. **Header recalculation**: Calls `$item->purchaseHeader->recalculateTotal()`.
+
+### 5.4 Total Recalculation
+
+`PurchaseHeader::recalculateTotal()` is called after any purchase item is created, updated, or deleted. It sums the `line_total` of all associated purchase items and saves the result quietly. For updates and deletions, this runs inside the same transaction as the modifying operation.
 
 ---
 
 ## 6. Summary
 
-| Concept              | Implementation                            | Purpose                                               |
-| -------------------- | ----------------------------------------- | ----------------------------------------------------- |
-| Product catalog      | `products` table                          | What you sell — definitions only                      |
-| Categories           | `categories` table                        | Organize products                                     |
-| Suppliers            | `suppliers` table                         | Who you buy from                                      |
-| Purchase transaction | `purchase_headers` + `purchase_items`     | What came in, from whom, which products, at what cost |
-| Purchase line items  | `purchase_items` table                    | Per-product breakdown of a purchase                   |
-| Individual units     | `stock_items` table                       | One row per physical item in inventory                |
-| Opening stock        | `purchase_headers.type = 'opening_stock'` | Initial inventory, same flow                          |
-| Serial number gen.   | `SerialNumberService`                     | Auto-generates unique IMEI-like codes for mobiles     |
-| Stock item creation  | `StockItemService`                        | Creates stock items from purchase items with all logic |
-| Reference code       | `PurchaseHeader::generateReferenceCode()` | Auto-generates `BY-{TYPE}-{YEAR}-{NNNN}` on create    |
-| Total recalculation  | `PurchaseHeader::recalculateTotal()`      | Updates header total from line item sums              |
+| Concept                   | Implementation                              | Purpose                                                    |
+| ------------------------- | ------------------------------------------- | ---------------------------------------------------------- |
+| Product catalog           | `products` table                            | What you sell — definitions only                           |
+| Categories                | `categories` table                          | Organize products                                          |
+| Suppliers                 | `suppliers` table                           | Who you buy from                                           |
+| Purchase transaction      | `purchase_headers` + `purchase_items`       | What came in, from whom, which products, at what cost      |
+| Purchase line items       | `purchase_items` table                      | Per-product breakdown of a purchase                        |
+| Individual units          | `stock_items` table                         | One row per physical item in inventory                     |
+| Opening stock             | `purchase_headers.type = 'opening_stock'`   | Initial inventory, same flow                               |
+| Serial number gen.        | `SerialNumberService`                       | Auto-generates unique IMEI-like codes for mobiles          |
+| Stock item creation       | `StockItemService`                          | Creates stock items from purchase items with all logic     |
+| Stock item reconciliation | `PurchaseItemUpdateService`                 | Transactional update of stock_items on purchase-item edits |
+| Cascade delete on destroy | `PurchaseItemController@destroy`            | Hard-deletes all stock_items when purchase item is deleted  |
+| Reference code            | `PurchaseHeader::generateReferenceCode()`   | Auto-generates `BY-{TYPE}-{YEAR}-{NNNN}` on create         |
+| Total recalculation       | `PurchaseHeader::recalculateTotal()`        | Updates header total from line item sums                   |
+| Update exception          | `PurchaseItemUpdateException`               | Human-readable rejection when reconciliation isn't possible |

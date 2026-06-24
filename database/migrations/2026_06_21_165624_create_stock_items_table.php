@@ -21,9 +21,14 @@ return new class extends Migration
             $table->enum('condition', ['new', 'excellent', 'good', 'fair'])
                 ->default('new');
 
-            $table->enum('status', ['available', 'sold', 'reserved', 'damaged', 'returned'])
-                ->default('available');
-
+            $table->enum('status', [
+                'available',
+                'sold',
+                'reserved',
+                'damaged',
+                'returned',
+                'voided'
+            ])->default('available');
             $table->timestamps();
         });
     }
