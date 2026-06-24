@@ -3,11 +3,39 @@
 namespace App\Http\Controllers;
 
 use App\Http\Responses\ApiResponse;
+use App\Models\Product;
 use App\Models\StockItem;
 use Illuminate\Http\Request;
 
 class StockItemController extends Controller
 {
+    public function available(Request $request)
+    {
+        $perPage = (int) $request->input('per_page', 50);
+        $search = $request->input('search');
+        $categoryId = $request->input('category_id');
+
+        $query = StockItem::available()
+            ->with(['product.category']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('product', fn($p) => $p->where('name', 'like', "%{$search}%"))
+                  ->orWhere('serial_number', 'like', "%{$search}%");
+            });
+        }
+
+        if ($categoryId) {
+            $query->whereHas('product', fn($p) => $p->where('category_id', $categoryId));
+        }
+
+        $items = $query->orderBy('product_id')->paginate($perPage);
+
+        return ApiResponse::success(
+            message: 'تم جلب المخزون المتاح بنجاح',
+            data: $items,
+        );
+    }
 
     public function index(Request $request)
     {

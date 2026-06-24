@@ -31,4 +31,14 @@ class StockItem extends Model
     {
         return $this->belongsTo(PurchaseItem::class);
     }
+
+    public function saleItems()
+    {
+        return $this->belongsToMany(SaleItem::class, 'sale_item_stock_item');
+    }
+
+    public function scopeAvailable($query)
+    {
+        return $query->where('status', 'available');
+    }
 }
