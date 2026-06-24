@@ -280,6 +280,8 @@ POST /api/purchase-headers
 **Auto-generated fields:**
 - `reference_code`: Automatically generated on create using format `BY-{TYPE}-{YEAR}-{NNNN}` (e.g. `BY-PURCHASE-2026-0001`).
 
+**Response includes:** `supplier`, `purchaseItems` (with nested `product` and `stockItems`).
+
 ### 3.3 API: Purchase Items CRUD
 
 All endpoints return a single item (not arrays). `line_total` is calculated dynamically as `quantity × unit_cost` on the backend. When a purchase item is created, `StockItemService` automatically generates one stock item per unit.
@@ -306,13 +308,14 @@ POST /api/purchase-items
 | product_id         | The catalog product being purchased      |
 | quantity           | How many units                           |
 | unit_cost          | Price per unit from supplier             |
-| condition          | (optional) new / excellent / good / fair |
+| condition          | (optional, mobiles only) new / excellent / good / fair |
 
 **What happens on create:**
 1. `line_total` is calculated as `quantity × unit_cost`.
-2. The purchase item is persisted.
-3. `StockItemService::createFromPurchaseItem()` generates one stock item per unit:
-   - **Mobile** (`is_serialized = true`): Each unit gets a unique serial number (e.g. `SN-0001-20260621-A7X2`) via `SerialNumberService`.
+2. If the product is an **accessory** (`is_serialized = false`), `condition` is forced to `'new'` regardless of what the client sends.
+3. The purchase item is persisted.
+4. `StockItemService::createFromPurchaseItem()` prepares all stock item records in an array and inserts them in a single bulk query:
+   - **Mobile** (`is_serialized = true`): Each unit gets a unique serial number (e.g. `SN-0001-20260621-A7X2`) via `SerialNumberService`; intra-batch collisions are prevented with a local set.
    - **Accessory** (`is_serialized = false`): `serial_number` is left `null`.
    - `condition` is copied from the purchase item to each stock item.
    - `status` defaults to `'available'`.
@@ -343,6 +346,8 @@ PUT /api/purchase-items/{id}
 `line_total` recalculated automatically when `quantity` or `unit_cost` changes. Partial update supported. The parent purchase header's `total` is also recalculated after update.
 
 > **Note:** Updating a purchase item does **not** retroactively modify already-created stock items.
+>
+> **Note:** If the product (current or changed) is an accessory (`is_serialized = false`), `condition` is always forced to `'new'` regardless of what the client sends.
 
 #### Delete
 
@@ -384,7 +389,9 @@ Stock items are primarily created automatically via `StockItemService` when purc
 | unit_cost          | `required\|numeric\|min:0`                     |
 | condition          | `nullable\|in:new,excellent,good,fair`         |
 
-> **Note:** `line_total` is not accepted from the client. It is calculated server-side as `quantity × unit_cost`.
+> **Notes:**
+> - `line_total` is not accepted from the client. It is calculated server-side as `quantity × unit_cost`.
+> - `condition` is only applied from the client when the product is serialized (mobile). For accessories (`is_serialized = false`), it is always forced to `'new'`.
 
 #### Stock Item
 
@@ -508,16 +515,17 @@ class StockItemService
 }
 ```
 
-#### `createFromPurchaseItem(PurchaseItem $purchaseItem)`
+#### `createFromPurchaseItem(PurchaseItem $purchaseItem): int`
 
-Called automatically when a purchase item is created:
+Called automatically when a purchase item is created. Returns the number of stock items inserted.
 
 1. Looks up the product's `is_serialized` flag.
-2. Loops `quantity` times, creating one `StockItem` per unit.
-3. For **mobiles** (`is_serialized = true`): generates a unique serial number via `SerialNumberService`.
+2. Builds an array of all stock item records in memory.
+3. For **mobiles** (`is_serialized = true`): generates a unique serial number for each unit via `SerialNumberService`; prevents intra-batch collisions with a local set.
 4. For **accessories** (`is_serialized = false`): leaves `serial_number = null`.
-5. Copies `condition` from the purchase item to each stock item.
+5. Copies `condition` from the purchase item to each record.
 6. Sets `cost_price = unit_cost` and `status = 'available'`.
+7. Performs a single bulk `StockItem::insert()` for all records (1 query regardless of quantity).
 
 ### 5.3 Total Recalculation
 

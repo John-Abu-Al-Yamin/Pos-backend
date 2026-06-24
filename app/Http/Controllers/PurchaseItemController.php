@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\PurchaseItem\StorePurchaseItemRequest;
 use App\Http\Requests\PurchaseItem\UpdatePurchaseItemRequest;
 use App\Http\Responses\ApiResponse;
+use App\Models\Product;
 use App\Models\PurchaseHeader;
 use App\Models\PurchaseItem;
 use App\Services\StockItemService;
@@ -31,6 +32,11 @@ class PurchaseItemController extends Controller
     {
         $data = $request->validated();
         $data['line_total'] = $data['quantity'] * $data['unit_cost'];
+
+        $product = Product::findOrFail($data['product_id']);
+        if (!$product->is_serialized) {
+            $data['condition'] = 'new';
+        }
 
         $item = PurchaseItem::create($data);
         $this->stockItemService->createFromPurchaseItem($item);
@@ -73,6 +79,12 @@ class PurchaseItemController extends Controller
         }
 
         $data = $request->validated();
+
+        $productId = $data['product_id'] ?? $item->product_id;
+        $product = Product::findOrFail($productId);
+        if (!$product->is_serialized) {
+            $data['condition'] = 'new';
+        }
 
         if (isset($data['quantity']) || isset($data['unit_cost'])) {
             $quantity = $data['quantity'] ?? $item->quantity;

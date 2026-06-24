@@ -11,27 +11,37 @@ class StockItemService
         private readonly SerialNumberService $serialNumberService
     ) {}
 
-    public function createFromPurchaseItem(PurchaseItem $purchaseItem): array
+    public function createFromPurchaseItem(PurchaseItem $purchaseItem): int
     {
         $product = $purchaseItem->product;
-        $stockItems = [];
+        $records = [];
+        $serialNumbers = [];
+        $now = now();
 
         for ($i = 0; $i < $purchaseItem->quantity; $i++) {
-            $data = [
+            $record = [
                 'product_id' => $purchaseItem->product_id,
                 'purchase_item_id' => $purchaseItem->id,
                 'cost_price' => $purchaseItem->unit_cost,
                 'condition' => $purchaseItem->condition,
                 'status' => 'available',
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
 
             if ($product->is_serialized) {
-                $data['serial_number'] = $this->serialNumberService->generate($product);
+                do {
+                    $serialNumber = $this->serialNumberService->generate($product);
+                } while (isset($serialNumbers[$serialNumber]));
+                $serialNumbers[$serialNumber] = true;
+                $record['serial_number'] = $serialNumber;
             }
 
-            $stockItems[] = StockItem::create($data);
+            $records[] = $record;
         }
 
-        return $stockItems;
+        StockItem::insert($records);
+
+        return $purchaseItem->quantity;
     }
 }
