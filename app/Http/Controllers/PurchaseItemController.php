@@ -46,10 +46,13 @@ class PurchaseItemController extends Controller
         $deviceDetails = $data['device_details'] ?? [];
         unset($data['device_details']);
 
-        $item = PurchaseItem::create($data);
-        $this->stockItemService->createFromPurchaseItem($item, $deviceDetails);
-        $item->load(['purchaseHeader', 'product', 'stockItems']);
-        $item->purchaseHeader->recalculateTotal();
+        $item = DB::transaction(function () use ($data, $deviceDetails) {
+            $item = PurchaseItem::create($data);
+            $this->stockItemService->createFromPurchaseItem($item, $deviceDetails);
+            $item->load(['purchaseHeader', 'product', 'stockItems']);
+            $item->purchaseHeader->recalculateTotal();
+            return $item;
+        });
 
         return ApiResponse::success(
             message: 'تم إنشاء عنصر الشراء بنجاح',

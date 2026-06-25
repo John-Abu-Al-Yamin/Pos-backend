@@ -16,6 +16,10 @@ class StockItem extends Model
         'battery_health',
         'screen_condition',
         'body_condition',
+        'face_id_working',
+        'fingerprint_working',
+        'camera_working',
+        'speaker_working',
         'accessories',
         'notes',
     ];
@@ -25,6 +29,10 @@ class StockItem extends Model
         return [
             'cost_price' => 'decimal:2',
             'battery_health' => 'integer',
+            'face_id_working' => 'boolean',
+            'fingerprint_working' => 'boolean',
+            'camera_working' => 'boolean',
+            'speaker_working' => 'boolean',
         ];
     }
 

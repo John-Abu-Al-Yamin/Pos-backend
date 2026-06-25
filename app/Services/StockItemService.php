@@ -42,6 +42,10 @@ class StockItemService
                     $record['battery_health'] = $detail['battery_health'] ?? null;
                     $record['screen_condition'] = $detail['screen_condition'] ?? null;
                     $record['body_condition'] = $detail['body_condition'] ?? null;
+                    $record['face_id_working'] = $detail['face_id_working'] ?? null;
+                    $record['fingerprint_working'] = $detail['fingerprint_working'] ?? null;
+                    $record['camera_working'] = $detail['camera_working'] ?? null;
+                    $record['speaker_working'] = $detail['speaker_working'] ?? null;
                     $record['accessories'] = $detail['accessories'] ?? null;
                     $record['notes'] = $detail['notes'] ?? null;
                 }

@@ -49,7 +49,10 @@ class PurchaseItemUpdateService
             $data['condition'] = 'new';
         }
 
-        return DB::transaction(function () use ($item, $data, $product) {
+        $deviceDetails = $data['device_details'] ?? [];
+        unset($data['device_details']);
+
+        return DB::transaction(function () use ($item, $data, $product, $deviceDetails) {
             // Re-read purchase_item with row-level lock to get the latest
             // committed values and prevent race conditions (Scenario 7).
             $lockedItem = PurchaseItem::lockForUpdate()->findOrFail($item->id);
@@ -68,6 +71,7 @@ class PurchaseItemUpdateService
             $quantityChanged = $newQuantity !== $oldQuantity;
             $costChanged = $newUnitCost !== $oldUnitCost;
             $conditionChanged = $newCondition !== $oldCondition;
+            $deviceDetailsChanged = !empty($deviceDetails);
 
             $messages = [];
 
@@ -103,12 +107,22 @@ class PurchaseItemUpdateService
             // ---- Scenario 3: Quantity increase ----
             if ($quantityChanged && $newQuantity > $oldQuantity) {
                 $itemsToAdd = $newQuantity - $oldQuantity;
-                $this->createAdditionalStockItems($lockedItem, $itemsToAdd, $newUnitCost, $newCondition, $product);
+
+                $newDeviceDetails = [];
+                if ($deviceDetailsChanged) {
+                    for ($i = $oldQuantity; $i < $newQuantity; $i++) {
+                        $newDeviceDetails[] = $deviceDetails[$i] ?? $deviceDetails[0] ?? [];
+                    }
+                }
+
+                $this->createAdditionalStockItems($lockedItem, $itemsToAdd, $newUnitCost, $newCondition, $product, $newDeviceDetails);
                 $messages[] = "{$itemsToAdd} new stock item(s) created.";
             }
 
-            // ---- Scenario 1 & 2: Cost / condition propagation ----
-            if ($costChanged || $conditionChanged) {
+            // ---- Scenario 1 & 2: Cost / condition / device details propagation ----
+            $detailsChanged = $costChanged || $conditionChanged || $deviceDetailsChanged;
+
+            if ($detailsChanged) {
                 $availableForUpdate = StockItem::where('purchase_item_id', $lockedItem->id)
                     ->where('status', 'available')
                     ->lockForUpdate()
@@ -118,13 +132,25 @@ class PurchaseItemUpdateService
                     ->count();
 
                 $affectedCount = 0;
-                foreach ($availableForUpdate as $si) {
+                foreach ($availableForUpdate as $i => $si) {
                     $updateData = [];
                     if ($costChanged) {
                         $updateData['cost_price'] = $newUnitCost;
                     }
                     if ($conditionChanged) {
                         $updateData['condition'] = $newCondition;
+                    }
+                    if ($deviceDetailsChanged) {
+                        $detail = $deviceDetails[0] ?? [];
+                        $updateData['battery_health'] = array_key_exists('battery_health', $detail) ? $detail['battery_health'] : $si->battery_health;
+                        $updateData['screen_condition'] = array_key_exists('screen_condition', $detail) ? $detail['screen_condition'] : $si->screen_condition;
+                        $updateData['body_condition'] = array_key_exists('body_condition', $detail) ? $detail['body_condition'] : $si->body_condition;
+                        $updateData['face_id_working'] = array_key_exists('face_id_working', $detail) ? $detail['face_id_working'] : $si->face_id_working;
+                        $updateData['fingerprint_working'] = array_key_exists('fingerprint_working', $detail) ? $detail['fingerprint_working'] : $si->fingerprint_working;
+                        $updateData['camera_working'] = array_key_exists('camera_working', $detail) ? $detail['camera_working'] : $si->camera_working;
+                        $updateData['speaker_working'] = array_key_exists('speaker_working', $detail) ? $detail['speaker_working'] : $si->speaker_working;
+                        $updateData['accessories'] = array_key_exists('accessories', $detail) ? $detail['accessories'] : $si->accessories;
+                        $updateData['notes'] = array_key_exists('notes', $detail) ? $detail['notes'] : $si->notes;
                     }
                     if (!empty($updateData)) {
                         $updateData['updated_at'] = now();
@@ -139,6 +165,9 @@ class PurchaseItemUpdateService
                 }
                 if ($conditionChanged) {
                     $parts[] = 'condition';
+                }
+                if ($deviceDetailsChanged) {
+                    $parts[] = 'device details';
                 }
                 $fieldLabel = implode('/', $parts);
 
@@ -180,7 +209,8 @@ class PurchaseItemUpdateService
         int $count,
         float $costPrice,
         string $condition,
-        $product
+        $product,
+        array $deviceDetails = []
     ): void {
         $records = [];
         $serialNumbers = [];
@@ -203,6 +233,19 @@ class PurchaseItemUpdateService
                 } while (isset($serialNumbers[$serialNumber]));
                 $serialNumbers[$serialNumber] = true;
                 $record['serial_number'] = $serialNumber;
+
+                $detail = $deviceDetails[$i] ?? [];
+                if (!empty($detail)) {
+                    $record['battery_health'] = $detail['battery_health'] ?? null;
+                    $record['screen_condition'] = $detail['screen_condition'] ?? null;
+                    $record['body_condition'] = $detail['body_condition'] ?? null;
+                    $record['face_id_working'] = $detail['face_id_working'] ?? null;
+                    $record['fingerprint_working'] = $detail['fingerprint_working'] ?? null;
+                    $record['camera_working'] = $detail['camera_working'] ?? null;
+                    $record['speaker_working'] = $detail['speaker_working'] ?? null;
+                    $record['accessories'] = $detail['accessories'] ?? null;
+                    $record['notes'] = $detail['notes'] ?? null;
+                }
             }
 
             $records[] = $record;
