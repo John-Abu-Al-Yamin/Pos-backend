@@ -13,12 +13,18 @@ class StockItem extends Model
         'cost_price',
         'condition',
         'status',
+        'battery_health',
+        'screen_condition',
+        'body_condition',
+        'accessories',
+        'notes',
     ];
 
     protected function casts(): array
     {
         return [
             'cost_price' => 'decimal:2',
+            'battery_health' => 'integer',
         ];
     }
 

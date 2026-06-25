@@ -20,6 +20,29 @@ class StorePurchaseItemRequest extends BaseApiRequest
             'quantity' => 'required|integer|min:1',
             'unit_cost' => 'required|numeric|min:0',
             'condition' => 'nullable|in:new,excellent,good,fair',
+            'device_details' => 'nullable|array',
+            'device_details.*.battery_health' => 'nullable|integer|min:0|max:100',
+            'device_details.*.screen_condition' => 'nullable|string|max:255',
+            'device_details.*.body_condition' => 'nullable|string|max:255',
+            'device_details.*.accessories' => 'nullable|string|max:1000',
+            'device_details.*.notes' => 'nullable|string|max:2000',
         ];
+    }
+
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $data = $validator->getData();
+            if (!empty($data['device_details']) && isset($data['quantity'])) {
+                $quantity = (int) $data['quantity'];
+                $detailCount = count($data['device_details']);
+                if ($detailCount !== $quantity) {
+                    $validator->errors()->add(
+                        'device_details',
+                        "عدد تفاصيل الأجهزة ({$detailCount}) يجب أن يساوي الكمية ({$quantity})."
+                    );
+                }
+            }
+        });
     }
 }

@@ -23,7 +23,12 @@ class UpdatePurchaseHeaderRequest extends BaseApiRequest
     public function rules(): array
     {
         return [
-            'supplier_id' => 'sometimes|exists:suppliers,id',
+            'supplier_id' => [
+                'sometimes',
+                'nullable',
+                'exists:suppliers,id',
+                'required_if:type,purchase',
+            ],
             'date' => 'sometimes|required|date',
             'type' => 'sometimes|required|in:purchase,opening_stock',
             'reference' => 'nullable|string|max:255',

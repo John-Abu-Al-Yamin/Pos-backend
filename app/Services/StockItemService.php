@@ -11,12 +11,13 @@ class StockItemService
         private readonly SerialNumberService $serialNumberService
     ) {}
 
-    public function createFromPurchaseItem(PurchaseItem $purchaseItem): int
+    public function createFromPurchaseItem(PurchaseItem $purchaseItem, array $deviceDetails = []): int
     {
         $product = $purchaseItem->product;
         $records = [];
         $serialNumbers = [];
         $now = now();
+        $hasDeviceDetails = !empty($deviceDetails);
 
         for ($i = 0; $i < $purchaseItem->quantity; $i++) {
             $record = [
@@ -35,6 +36,15 @@ class StockItemService
                 } while (isset($serialNumbers[$serialNumber]));
                 $serialNumbers[$serialNumber] = true;
                 $record['serial_number'] = $serialNumber;
+
+                if ($hasDeviceDetails) {
+                    $detail = $deviceDetails[$i] ?? [];
+                    $record['battery_health'] = $detail['battery_health'] ?? null;
+                    $record['screen_condition'] = $detail['screen_condition'] ?? null;
+                    $record['body_condition'] = $detail['body_condition'] ?? null;
+                    $record['accessories'] = $detail['accessories'] ?? null;
+                    $record['notes'] = $detail['notes'] ?? null;
+                }
             }
 
             $records[] = $record;

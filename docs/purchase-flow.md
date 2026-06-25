@@ -9,6 +9,8 @@ Nothing enters inventory without a **purchase transaction**. This includes:
 - Accessories (model-specific or generic)
 - Opening stock (existing inventory when the system starts)
 
+Stock exits inventory via **sales transactions**. The system also supports a **Point-of-Sale (POS)** flow that ties directly into sales.
+
 ---
 
 ## 1. Database Schema
@@ -64,7 +66,24 @@ Schema::create('suppliers', function (Blueprint $table) {
 | name   | string unique | e.g. "Samsung Distributor" |
 | phone  | string unique |                            |
 
-### 1.4 Purchase Headers
+### 1.4 Customers
+
+```php
+Schema::create('customers', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->string('phone')->nullable()->unique();
+    $table->timestamps();
+});
+```
+
+| Column | Type           | Notes                         |
+| ------ | -------------- | ----------------------------- |
+| id     | bigint PK      |                               |
+| name   | string         | Customer name                 |
+| phone  | string unique? | Nullable, Egyptian mobile format |
+
+### 1.5 Purchase Headers
 
 ```php
 Schema::create('purchase_headers', function (Blueprint $table) {
@@ -89,7 +108,7 @@ Schema::create('purchase_headers', function (Blueprint $table) {
 | total          | decimal(10,2)   | Total cost (recalculated from line items) |
 | type           | enum            | purchase / opening_stock             |
 
-### 1.5 Purchase Items (Line Items)
+### 1.6 Purchase Items (Line Items)
 
 ```php
 Schema::create('purchase_items', function (Blueprint $table) {
@@ -114,7 +133,7 @@ Schema::create('purchase_items', function (Blueprint $table) {
 | line_total         | decimal(10,2)         | quantity × unit_cost (calculated server-side) |
 | condition          | enum                  | new / excellent / good / fair    |
 
-### 1.6 Stock Items (Individual Units)
+### 1.7 Stock Items (Individual Units)
 
 ```php
 Schema::create('stock_items', function (Blueprint $table) {
@@ -125,6 +144,11 @@ Schema::create('stock_items', function (Blueprint $table) {
     $table->decimal('cost_price', 10, 2);
     $table->enum('condition', ['new', 'excellent', 'good', 'fair'])->default('new');
     $table->enum('status', ['available', 'sold', 'reserved', 'damaged', 'returned', 'voided'])->default('available');
+    $table->tinyInteger('battery_health')->nullable();
+    $table->string('screen_condition')->nullable();
+    $table->string('body_condition')->nullable();
+    $table->text('accessories')->nullable();
+    $table->text('notes')->nullable();
     $table->timestamps();
 });
 ```
@@ -137,9 +161,95 @@ Schema::create('stock_items', function (Blueprint $table) {
 | serial_number    | string unique?        | Auto-generated for mobiles, null for accessories |
 | cost_price       | decimal(10,2)         | Unit cost from supplier                     |
 | condition        | enum                  | new / excellent / good / fair               |
-| status           | enum                  | available / sold / reserved / damaged / returned / **voided** |
+| status           | enum                  | available / sold / reserved / damaged / returned / voided |
+| battery_health   | tinyInteger nullable  | 0–100 (only for used serialized products)   |
+| screen_condition | string nullable       | e.g. perfect, scratched, cracked, broken    |
+| body_condition   | string nullable       | e.g. perfect, scratched, dented, worn       |
+| accessories      | text nullable         | e.g. "charger, box, cable"                  |
+| notes            | text nullable         | Additional device-specific notes            |
 
-> The `voided` status was added via migration `2026_06_24_000001_add_voided_status_to_stock_items.php` but is currently unused. Quantity reductions now hard-delete excess stock items rather than setting `status = 'voided'`.
+> The `voided` status is declared inline in the initial stock_items migration (no separate migration was needed). It is currently unused — quantity reductions hard-delete excess stock items rather than setting `status = 'voided'`. Device details fields (battery_health, screen_condition, body_condition, accessories, notes) were added via migration `2026_06_24_170225_add_device_details_to_stock_items.php`.
+
+### 1.8 Sales (Transactions)
+
+```php
+Schema::create('sales', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();
+    $table->date('date');
+    $table->decimal('total', 10, 2)->default(0);
+    $table->enum('payment_method', ['cash', 'card', 'transfer', 'installment'])->default('cash');
+    $table->string('reference_code')->nullable()->unique();
+    $table->timestamps();
+});
+```
+
+| Column         | Type            | Notes                                |
+| -------------- | --------------- | ------------------------------------ |
+| id             | bigint PK       |                                      |
+| customer_id    | FK → customers? | nullable, nullOnDelete               |
+| date           | date            | Sale date                            |
+| total          | decimal(10,2)   | Total sale amount (from line items)  |
+| payment_method | enum            | cash / card / transfer / installment |
+| reference_code | string unique?  | Auto-generated (e.g. `SALE-20260624-0001`) |
+
+### 1.9 Sale Items (Line Items)
+
+```php
+Schema::create('sale_items', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('sale_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('product_id')->constrained();
+    $table->integer('quantity');
+    $table->decimal('unit_price', 10, 2);
+    $table->decimal('line_total', 10, 2);
+    $table->timestamps();
+});
+```
+
+| Column     | Type            | Notes                            |
+| ---------- | --------------- | -------------------------------- |
+| id         | bigint PK       |                                  |
+| sale_id    | FK → sales      |                                  |
+| product_id | FK → products   | Which catalog item was sold      |
+| quantity   | integer         | Number of units                  |
+| unit_price | decimal(10,2)   | Selling price per unit           |
+| line_total | decimal(10,2)   | quantity × unit_price (calculated server-side) |
+
+### 1.10 Sale Item ↔ Stock Item (Pivot)
+
+```php
+Schema::create('sale_item_stock_item', function (Blueprint $table) {
+    $table->foreignId('sale_item_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('stock_item_id')->constrained()->cascadeOnDelete();
+    $table->primary(['sale_item_id', 'stock_item_id']);
+});
+```
+
+Links each sale line item to the specific stock item(s) that were sold.
+
+### 1.11 Users
+
+```php
+Schema::create('users', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->string('email')->unique();
+    $table->timestamp('email_verified_at')->nullable();
+    $table->string('password');
+    $table->enum('role', ['employee', 'admin'])->default('employee');
+    $table->rememberToken();
+    $table->timestamps();
+});
+```
+
+| Column    | Type          | Notes                     |
+| --------- | ------------- | ------------------------- |
+| id        | bigint PK     |                           |
+| name      | string        |                           |
+| email     | string unique |                           |
+| password  | string        | Hashed                    |
+| role      | enum          | employee / admin          |
 
 ---
 
@@ -149,14 +259,12 @@ Schema::create('stock_items', function (Blueprint $table) {
 class Category extends Model
 {
     protected $fillable = ['name'];
-
     public function products() { return $this->hasMany(Product::class); }
 }
 
 class Product extends Model
 {
     protected $fillable = ['name', 'category_id', 'is_serialized'];
-
     public function category()      { return $this->belongsTo(Category::class); }
     public function purchaseItems() { return $this->hasMany(PurchaseItem::class); }
     public function stockItems()    { return $this->hasMany(StockItem::class); }
@@ -165,8 +273,13 @@ class Product extends Model
 class Supplier extends Model
 {
     protected $fillable = ['name', 'phone'];
-
     public function purchaseHeaders() { return $this->hasMany(PurchaseHeader::class); }
+}
+
+class Customer extends Model
+{
+    protected $fillable = ['name', 'phone'];
+    public function sales() { return $this->hasMany(Sale::class); }
 }
 
 class PurchaseHeader extends Model
@@ -190,15 +303,12 @@ class PurchaseHeader extends Model
         $year = now()->year;
         $typeCode = Str::upper(Str::replace(' ', '_', $type));
         $prefix = "BY-{$typeCode}-{$year}-";
-
         $lastRecord = static::where('reference_code', 'like', "{$prefix}%")
             ->orderBy('reference_code', 'desc')
             ->first();
-
         $nextNumber = $lastRecord
             ? (int) Str::afterLast($lastRecord->reference_code, '-') + 1
             : 1;
-
         return $prefix . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
     }
 
@@ -229,15 +339,76 @@ class StockItem extends Model
     protected $fillable = [
         'product_id', 'purchase_item_id', 'serial_number',
         'cost_price', 'condition', 'status',
+        'battery_health', 'screen_condition', 'body_condition',
+        'accessories', 'notes',
     ];
 
     protected function casts(): array
     {
-        return ['cost_price' => 'decimal:2'];
+        return [
+            'cost_price' => 'decimal:2',
+            'battery_health' => 'integer',
+        ];
     }
 
     public function product()      { return $this->belongsTo(Product::class); }
     public function purchaseItem() { return $this->belongsTo(PurchaseItem::class); }
+    public function saleItems()    { return $this->belongsToMany(SaleItem::class, 'sale_item_stock_item'); }
+
+    public function scopeAvailable($query)
+    {
+        return $query->where('status', 'available');
+    }
+}
+
+class Sale extends Model
+{
+    protected $fillable = [
+        'customer_id', 'date', 'total',
+        'payment_method', 'reference_code',
+    ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Sale $sale) {
+            if (empty($sale->reference_code)) {
+                $sale->reference_code = static::generateReferenceCode();
+            }
+        });
+    }
+
+    public static function generateReferenceCode(): string
+    {
+        $prefix = 'SALE-' . now()->format('Ymd') . '-';
+        $lastRecord = static::where('reference_code', 'like', "{$prefix}%")
+            ->orderBy('reference_code', 'desc')
+            ->first();
+        $nextNumber = $lastRecord
+            ? (int) Str::afterLast($lastRecord->reference_code, '-') + 1
+            : 1;
+        return $prefix . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
+    }
+
+    public function customer()  { return $this->belongsTo(Customer::class); }
+    public function saleItems() { return $this->hasMany(SaleItem::class); }
+
+    public function recalculateTotal(): void
+    {
+        $this->total = $this->saleItems()->sum('line_total');
+        $this->saveQuietly();
+    }
+}
+
+class SaleItem extends Model
+{
+    protected $fillable = [
+        'sale_id', 'product_id', 'quantity',
+        'unit_price', 'line_total',
+    ];
+
+    public function sale()       { return $this->belongsTo(Sale::class); }
+    public function product()    { return $this->belongsTo(Product::class); }
+    public function stockItems() { return $this->belongsToMany(StockItem::class, 'sale_item_stock_item'); }
 }
 ```
 
@@ -311,6 +482,23 @@ POST /api/purchase-items
 | quantity           | How many units                           |
 | unit_cost          | Price per unit from supplier             |
 | condition          | (optional, mobiles only) new / excellent / good / fair |
+| device_details     | (optional) Array of per-unit device details for used phones |
+
+**`device_details` format (only for used serialized products):**
+
+```json
+"device_details": [
+    {
+        "battery_health": 85,
+        "screen_condition": "scratched",
+        "body_condition": "good",
+        "accessories": "charger, box",
+        "notes": "scratches on back"
+    }
+]
+```
+
+The array length **must equal** `quantity`. If provided, each element maps to one stock item. If omitted, all device detail fields default to `null`.
 
 **What happens on create:**
 1. `line_total` is calculated as `quantity × unit_cost`.
@@ -321,8 +509,9 @@ POST /api/purchase-items
    - **Accessory** (`is_serialized = false`): `serial_number` is left `null`.
    - `condition` is copied from the purchase item to each stock item.
    - `status` defaults to `'available'`.
-4. `PurchaseHeader::recalculateTotal()` updates the header's total from all line items.
-5. Response includes the `stockItems` relation.
+   - **Device details** (if provided): `battery_health`, `screen_condition`, `body_condition`, `accessories`, and `notes` are applied per-unit.
+5. `PurchaseHeader::recalculateTotal()` updates the header's total from all line items.
+6. Response includes the `stockItems` relation.
 
 #### Read
 
@@ -388,12 +577,20 @@ The parent purchase header's total is recalculated in the same transaction after
 
 ### 3.4 Stock Items
 
-| Method | Endpoint                 | Description  |
-| ------ | ------------------------ | ------------ |
-| GET    | `/api/stock-items`       | Paginated list |
-| GET    | `/api/stock-items/{id}`  | Single item  |
+| Method | Endpoint                          | Description                              |
+| ------ | --------------------------------- | ---------------------------------------- |
+| GET    | `/api/stock-items`                | Paginated list (all statuses)            |
+| GET    | `/api/stock-items/{id}`           | Single item                              |
+| GET    | `/api/stock-items/available`      | Paginated list of `available` items only |
 
-Stock items are primarily created automatically via `StockItemService` when purchase items are created. Only read (index/show) endpoints are exposed through the API — manual creation, update, or deletion of stock items is not available via API.
+**`available` endpoint** (added later):
+- Filters `StockItem::available()` (status = `'available'`)
+- Supports `search` param (matches product name or serial_number)
+- Supports `category_id` param (filters by product category)
+- Eager-loads `product.category` relation
+- Default `per_page`: 50
+
+Stock items are primarily created automatically via `StockItemService` when purchase items are created. Only read endpoints are exposed through the API — manual creation, update, or deletion of stock items is not available via API.
 
 ### 3.5 Validation Rules
 
@@ -417,10 +614,17 @@ Stock items are primarily created automatically via `StockItemService` when purc
 | quantity           | `required\|integer\|min:1`                     |
 | unit_cost          | `required\|numeric\|min:0`                     |
 | condition          | `nullable\|in:new,excellent,good,fair`         |
+| device_details     | `nullable\|array`                              |
+| device_details.*.battery_health | `nullable\|integer\|min:0\|max:100` |
+| device_details.*.screen_condition | `nullable\|string\|max:255` |
+| device_details.*.body_condition | `nullable\|string\|max:255` |
+| device_details.*.accessories | `nullable\|string\|max:1000` |
+| device_details.*.notes | `nullable\|string\|max:2000` |
 
 > **Notes:**
 > - `line_total` is not accepted from the client. It is calculated server-side as `quantity × unit_cost`.
 > - `condition` is only applied from the client when the product is serialized (mobile). For accessories (`is_serialized = false`), it is always forced to `'new'`.
+> - `device_details` array length must equal `quantity`. Only applicable for used serialized products.
 
 #### Stock Item
 
@@ -432,6 +636,11 @@ Stock items are primarily created automatically via `StockItemService` when purc
 | cost_price        | `required\|numeric\|min:0`                         |
 | condition         | `nullable\|in:new,excellent,good,fair`             |
 | status            | `nullable\|in:available,sold,reserved,damaged,returned,voided` |
+| battery_health    | `nullable\|integer\|min:0\|max:100`                |
+| screen_condition  | `nullable\|string`                                  |
+| body_condition    | `nullable\|string`                                  |
+| accessories       | `nullable\|string`                                  |
+| notes             | `nullable\|string`                                  |
 
 #### Product
 
@@ -440,6 +649,26 @@ Stock items are primarily created automatically via `StockItemService` when purc
 | name          | `required\|string`              |
 | category_id   | `required`                      |
 | is_serialized | `boolean`                       |
+
+#### Customer
+
+| Field  | Rule                              |
+| ------ | --------------------------------- |
+| name   | `required\|string`                |
+| phone  | `nullable\|string\|unique:customers,phone` |
+
+#### Sale
+
+| Field                        | Rule                              |
+| ---------------------------- | --------------------------------- |
+| customer_id                  | `nullable\|exists:customers,id`   |
+| date                         | `sometimes\|date`                 |
+| payment_method               | `sometimes\|in:cash,card,transfer,installment` |
+| items                        | `required\|array\|min:1`          |
+| items.*.product_id           | `required\|exists:products,id`    |
+| items.*.quantity             | `sometimes\|integer\|min:1`       |
+| items.*.unit_price           | `required\|numeric\|min:0`        |
+| items.*.stock_item_ids       | `sometimes\|array` (for serialized products) |
 
 ### 3.6 API Request: Opening Stock
 
@@ -455,9 +684,86 @@ POST /api/purchase-headers
 
 ---
 
-## 4. API Routes
+## 4. Sale Flow
+
+### 4.1 Standard Sale
+
+```
+Step 1   Define customer        → POST /api/customers (optional, can create inline)
+Step 2   Choose products        → POST /api/sales (with items array)
+Step 3   System marks stock     → status changed to 'sold' (via SaleService)
+Step 4   Sale total recalculated → from line item sums
+```
+
+### 4.2 API Request: Create Sale
+
+```
+POST /api/sales
+```
+
+```json
+{
+    "customer_id": 1,
+    "date": "2026-06-24",
+    "payment_method": "cash",
+    "items": [
+        {
+            "product_id": 1,
+            "quantity": 1,
+            "unit_price": 7500.00,
+            "stock_item_ids": [1]
+        }
+    ]
+}
+```
+
+| Field          | Description                                 |
+| -------------- | ------------------------------------------- |
+| customer_id    | (optional) The customer buying              |
+| date           | (optional) Defaults to today                |
+| payment_method | (optional) cash / card / transfer / installment |
+| items          | Array of line items                         |
+
+**What happens on create (inside a DB transaction via `SaleService::createSale()`):**
+
+1. The sale header is created.
+2. For each item:
+   - `line_total` is calculated as `quantity × unit_price`.
+   - A `SaleItem` record is created.
+   - **Serialized product**: The specific `stock_item_ids` must be provided (exactly 1 per item). Each stock item is locked with `lockForUpdate()`, validated as `available`, then marked `sold`.
+   - **Non-serialized product**: The first N `available` stock items (ordered by `id`) are locked, marked `sold`, and attached to the sale item via the pivot table. If insufficient stock exists, the transaction is rolled back.
+3. `Sale::recalculateTotal()` updates the header total.
+4. Response includes `customer`, `saleItems`, `product`, and `stockItems`.
+
+### 4.3 API: Sales CRUD
+
+| Method | Endpoint           | Description                |
+| ------ | ------------------ | -------------------------- |
+| GET    | `/api/sales`       | Paginated list (with customer + saleItems.product) |
+| POST   | `/api/sales`       | Create sale (see above)    |
+| GET    | `/api/sales/{id}`  | Single sale (with customer, saleItems.product, saleItems.stockItems) |
+
+> No `update` or `destroy` endpoints are exposed for sales — they are immutable once created.
+
+### 4.4 API: Customers CRUD
+
+| Method | Endpoint              | Description                    |
+| ------ | --------------------- | ------------------------------ |
+| GET    | `/api/customers`      | Paginated list (ordered by name) |
+| POST   | `/api/customers`      | Create customer                |
+| GET    | `/api/customers/{id}` | Single customer (with sales)   |
+| PUT    | `/api/customers/{id}` | Update customer                |
+| DELETE | `/api/customers/{id}` | Delete customer                |
+
+---
+
+## 5. API Routes
 
 ```php
+Route::get('/hello', function () {
+    return response()->json(['message' => 'Hello, World!']);
+});
+
 // PUBLIC
 Route::post('/login', [AuthController::class, 'login']);
 
@@ -488,6 +794,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/suppliers/{id}', [SupplierController::class, 'update']);
     Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy']);
 
+    // Customers
+    Route::get('/customers', [CustomerController::class, 'index']);
+    Route::post('/customers', [CustomerController::class, 'store']);
+    Route::get('/customers/{id}', [CustomerController::class, 'show']);
+    Route::put('/customers/{id}', [CustomerController::class, 'update']);
+    Route::delete('/customers/{id}', [CustomerController::class, 'destroy']);
+
     // Purchase Headers
     Route::get('/purchase-headers', [PurchaseHeaderController::class, 'index']);
     Route::post('/purchase-headers', [PurchaseHeaderController::class, 'store']);
@@ -502,7 +815,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/purchase-items/{id}', [PurchaseItemController::class, 'update']);
     Route::delete('/purchase-items/{id}', [PurchaseItemController::class, 'destroy']);
 
+    // Sales
+    Route::get('/sales', [SaleController::class, 'index']);
+    Route::post('/sales', [SaleController::class, 'store']);
+    Route::get('/sales/{id}', [SaleController::class, 'show']);
+
     // Stock Items (read-only via API)
+    Route::get('/stock-items/available', [StockItemController::class, 'available']);
     Route::get('/stock-items', [StockItemController::class, 'index']);
     Route::get('/stock-items/{id}', [StockItemController::class, 'show']);
 
@@ -513,11 +832,65 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 ```
 
+### 5.1 Standard Response Format
+
+All API responses use a consistent format via `ApiResponse` helper class (at `app/Http/Responses/ApiResponse.php`):
+
+```json
+// Success (single item)
+{
+    "success": true,
+    "status": 200,
+    "message": "...",
+    "data": { ... }
+}
+
+// Success (paginated list)
+{
+    "success": true,
+    "status": 200,
+    "message": "...",
+    "data": [ ... ],
+    "pagination": {
+        "current_page": 1,
+        "per_page": 10,
+        "total": 50,
+        "last_page": 5,
+        "from": 1,
+        "to": 10
+    }
+}
+
+// Error
+{
+    "success": false,
+    "status": 404,
+    "message": "...",
+    "errors": null
+}
+
+// Validation Error
+{
+    "success": false,
+    "status": 422,
+    "message": "Validation error",
+    "errors": [
+        { "field": "name", "message": "The name field is required." }
+    ]
+}
+```
+
+All form requests extend `BaseApiRequest` (at `app/Http/Requests/BaseApiRequest.php`), which overrides `failedValidation()` to return structured JSON errors in this format.
+
+### 5.2 Admin Middleware
+
+The `admin` middleware (at `app/Http/Middleware/AdminMiddleware.php`) checks `$request->user()->role !== 'admin'` and returns a 403 error. Registered as `'admin'` alias in `bootstrap/app.php`.
+
 ---
 
-## 5. Service Layer
+## 6. Service Layer
 
-### 5.1 SerialNumberService
+### 6.1 SerialNumberService
 
 Generates unique serial numbers for serialized products (mobiles). Located at `app/Services/SerialNumberService.php`.
 
@@ -528,7 +901,7 @@ Example: SN-0001-20260621-A7X2
 
 Uses a `do-while` loop to guarantee uniqueness against existing `stock_items.serial_number` values.
 
-### 5.2 StockItemService
+### 6.2 StockItemService
 
 Handles all stock item creation logic. Located at `app/Services/StockItemService.php`.
 
@@ -556,7 +929,7 @@ Called automatically when a purchase item is created. Returns the number of stoc
 6. Sets `cost_price = unit_cost` and `status = 'available'`.
 7. Performs a single bulk `StockItem::insert()` for all records (1 query regardless of quantity).
 
-### 5.3 PurchaseItemUpdateService
+### 6.3 PurchaseItemUpdateService
 
 Handles the transactional update of purchase items with stock-item reconciliation. Located at `app/Services/PurchaseItemUpdateService.php`.
 
@@ -590,27 +963,69 @@ Called by `PurchaseItemController@update`. Returns an array with the updated `it
 
 6. **Header recalculation**: Calls `$item->purchaseHeader->recalculateTotal()`.
 
-### 5.4 Total Recalculation
+### 6.4 SaleService
 
-`PurchaseHeader::recalculateTotal()` is called after any purchase item is created, updated, or deleted. It sums the `line_total` of all associated purchase items and saves the result quietly. For updates and deletions, this runs inside the same transaction as the modifying operation.
+Handles the transactional creation of sales with stock-item status management. Located at `app/Services/SaleService.php`.
+
+#### `createSale(array $data): Sale`
+
+Called by `SaleController@store`. Returns the created `Sale` with loaded relations.
+
+**Internal flow (all inside a single DB transaction):**
+
+1. Creates the `Sale` header with `customer_id`, `date`, and `payment_method`.
+
+2. For each item in the request:
+   - Looks up the product.
+   - Creates a `SaleItem` record (with `quantity`, `unit_price`, `line_total`).
+   - **Serialized product**: Lock the specific `stock_item_id` with `lockForUpdate()`, validate its status is `available`, update status to `sold`, and attach via pivot.
+   - **Non-serialized product**: Lock all matching `available` stock items (`lockForUpdate()`), validate sufficient quantity, update all to `sold`, and attach via pivot.
+   - If any validation fails (insufficient stock, wrong status), throws `RuntimeException` (rolls back the entire transaction).
+
+3. Recalculates the sale total.
+
+4. Returns the sale with `customer`, `saleItems.product`, and `saleItems.stockItems` relations loaded.
+
+### 6.5 Total Recalculation
+
+Both `PurchaseHeader::recalculateTotal()` and `Sale::recalculateTotal()` are called after any line item is created, updated, or deleted. They sum the `line_total` of all associated items and save the result quietly.
 
 ---
 
-## 6. Summary
+## 7. Exceptions
 
-| Concept                   | Implementation                              | Purpose                                                    |
-| ------------------------- | ------------------------------------------- | ---------------------------------------------------------- |
-| Product catalog           | `products` table                            | What you sell — definitions only                           |
-| Categories                | `categories` table                          | Organize products                                          |
-| Suppliers                 | `suppliers` table                           | Who you buy from                                           |
-| Purchase transaction      | `purchase_headers` + `purchase_items`       | What came in, from whom, which products, at what cost      |
-| Purchase line items       | `purchase_items` table                      | Per-product breakdown of a purchase                        |
-| Individual units          | `stock_items` table                         | One row per physical item in inventory                     |
-| Opening stock             | `purchase_headers.type = 'opening_stock'`   | Initial inventory, same flow                               |
-| Serial number gen.        | `SerialNumberService`                       | Auto-generates unique IMEI-like codes for mobiles          |
-| Stock item creation       | `StockItemService`                          | Creates stock items from purchase items with all logic     |
-| Stock item reconciliation | `PurchaseItemUpdateService`                 | Transactional update of stock_items on purchase-item edits |
-| Cascade delete on destroy | `PurchaseItemController@destroy`            | Hard-deletes all stock_items when purchase item is deleted  |
-| Reference code            | `PurchaseHeader::generateReferenceCode()`   | Auto-generates `BY-{TYPE}-{YEAR}-{NNNN}` on create         |
-| Total recalculation       | `PurchaseHeader::recalculateTotal()`        | Updates header total from line item sums                   |
-| Update exception          | `PurchaseItemUpdateException`               | Human-readable rejection when reconciliation isn't possible |
+### PurchaseItemUpdateException
+
+Located at `app/Exceptions/PurchaseItemUpdateException.php`. Extends `Exception`. Thrown by `PurchaseItemUpdateService` when a quantity reduction is not possible (not enough `available` stock items). Caught in `PurchaseItemController@update` and returned as HTTP 409 with a human-readable message.
+
+---
+
+## 8. Summary
+
+| Concept                    | Implementation                               | Purpose                                                    |
+| -------------------------- | -------------------------------------------- | ---------------------------------------------------------- |
+| Product catalog            | `products` table                             | What you sell — definitions only                           |
+| Categories                 | `categories` table                           | Organize products                                          |
+| Suppliers                  | `suppliers` table                            | Who you buy from                                           |
+| Customers                  | `customers` table                            | Who you sell to                                            |
+| Purchase transaction       | `purchase_headers` + `purchase_items`        | What came in, from whom, which products, at what cost      |
+| Purchase line items        | `purchase_items` table                       | Per-product breakdown of a purchase                        |
+| Sale transaction           | `sales` + `sale_items`                       | What went out, to whom, which products, at what price      |
+| Sale line items            | `sale_items` table                           | Per-product breakdown of a sale                            |
+| Sale ↔ Stock link          | `sale_item_stock_item` pivot                 | Tracks which specific stock items were sold                |
+| Individual units           | `stock_items` table                          | One row per physical item in inventory                     |
+| Opening stock              | `purchase_headers.type = 'opening_stock'`    | Initial inventory, same flow                               |
+| Users & roles              | `users.role` (employee / admin)              | Authentication and authorization                           |
+| Serial number gen.         | `SerialNumberService`                        | Auto-generates unique IMEI-like codes for mobiles          |
+| Stock item creation        | `StockItemService`                           | Creates stock items from purchase items with all logic     |
+| Stock item reconciliation  | `PurchaseItemUpdateService`                  | Transactional update of stock_items on purchase-item edits |
+| Sale processing            | `SaleService`                                | Transactional sale creation with stock reservation         |
+| Cascade delete on destroy  | `PurchaseItemController@destroy`             | Hard-deletes all stock_items when purchase item is deleted |
+| Reference code (purchase)  | `PurchaseHeader::generateReferenceCode()`    | Auto-generates `BY-{TYPE}-{YEAR}-{NNNN}` on create         |
+| Reference code (sale)      | `Sale::generateReferenceCode()`              | Auto-generates `SALE-{YYYYMMDD}-{NNNN}` on create          |
+| Total recalculation        | `PurchaseHeader::recalculateTotal()` / `Sale::recalculateTotal()` | Updates header total from line item sums |
+| Update exception           | `PurchaseItemUpdateException`                | Human-readable rejection when reconciliation isn't possible |
+| Standard response format   | `ApiResponse` helper                         | Consistent JSON structure for all API responses            |
+| Admin middleware           | `AdminMiddleware`                            | Restricts routes to users with `role = 'admin'`            |
+| Base form request          | `BaseApiRequest`                             | Structured validation error responses for all form requests |
+| Available stock query      | `StockItem::scopeAvailable()`                | Query scope for filtering `status = 'available'` items     |

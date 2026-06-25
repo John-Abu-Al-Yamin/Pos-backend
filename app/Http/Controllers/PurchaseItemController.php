@@ -25,7 +25,7 @@ class PurchaseItemController extends Controller
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
-        $items = PurchaseItem::with(['purchaseHeader', 'product'])->paginate($perPage);
+        $items = PurchaseItem::with(['purchaseHeader', 'product', 'stockItems'])->paginate($perPage);
 
         return ApiResponse::success(
             message: 'تم جلب عناصر الشراء بنجاح',
@@ -43,8 +43,11 @@ class PurchaseItemController extends Controller
             $data['condition'] = 'new';
         }
 
+        $deviceDetails = $data['device_details'] ?? [];
+        unset($data['device_details']);
+
         $item = PurchaseItem::create($data);
-        $this->stockItemService->createFromPurchaseItem($item);
+        $this->stockItemService->createFromPurchaseItem($item, $deviceDetails);
         $item->load(['purchaseHeader', 'product', 'stockItems']);
         $item->purchaseHeader->recalculateTotal();
 
@@ -57,7 +60,7 @@ class PurchaseItemController extends Controller
 
     public function show(int $id)
     {
-        $item = PurchaseItem::with(['purchaseHeader', 'product'])->find($id);
+        $item = PurchaseItem::with(['purchaseHeader', 'product', 'stockItems'])->find($id);
 
         if (!$item) {
             return ApiResponse::error(
