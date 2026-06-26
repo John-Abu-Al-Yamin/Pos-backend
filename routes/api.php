@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseHeaderController;
 use App\Http\Controllers\PurchaseItemController;
@@ -86,6 +87,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/returns', [ReturnController::class, 'index']);
     Route::post('/returns', [ReturnController::class, 'store']);
     Route::get('/returns/{id}', [ReturnController::class, 'show']);
+
+    // Dashboard
+    Route::get('/dashboard/financial', [DashboardController::class, 'financial']);
 
     // stock_items
     Route::get('/stock-items/available', [StockItemController::class, 'available']);

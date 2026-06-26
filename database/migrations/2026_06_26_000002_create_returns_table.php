@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('sale_id')->constrained()->restrictOnDelete();
             $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
-            $table->date('return_date');
+            $table->date('return_date')->index();
             $table->enum('refund_method', ['cash', 'card', 'bank_transfer']);
             $table->decimal('refund_total', 10, 2);
             $table->decimal('restocking_fee', 10, 2)->default(0);
