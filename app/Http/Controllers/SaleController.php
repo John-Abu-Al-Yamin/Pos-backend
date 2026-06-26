@@ -6,6 +6,7 @@ use App\Http\Requests\Sale\StoreSaleRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\Returns;
 use App\Models\Sale;
+use App\Models\User;
 use App\Services\SaleService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -19,7 +20,11 @@ class SaleController extends Controller
     public function store(StoreSaleRequest $request)
     {
         $data = $request->validated();
-        $data['user_id'] = $request->user()->id;
+        $user = $request->user();
+        $data['user_id'] = $user->id;
+        $data['created_by_name'] = $user->role === 'admin'
+            ? User::where('role', 'admin')->value('name')
+            : $user->name;
         $sale = $this->saleService->createSale($data);
 
         return ApiResponse::success(

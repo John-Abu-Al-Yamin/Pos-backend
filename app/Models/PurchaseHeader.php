@@ -12,6 +12,7 @@ class PurchaseHeader extends Model
 
     protected $fillable = [
         'supplier_id',
+        'created_by_name',
         'date',
         'total',
         'type',

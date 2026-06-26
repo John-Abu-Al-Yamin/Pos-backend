@@ -7,6 +7,7 @@ use App\Http\Requests\PurchaseHeader\UpdatePurchaseHeaderRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\PurchaseHeader;
 use App\Models\StockItem;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class PurchaseHeaderController extends Controller
@@ -15,6 +16,10 @@ class PurchaseHeaderController extends Controller
     public function store(StorePurchaseHeaderRequest $request)
     {
         $data = $request->validated();
+        $user = $request->user();
+        $data['created_by_name'] = $user->role === 'admin'
+            ? User::where('role', 'admin')->value('name')
+            : $user->name;
         $purchaseHeader = PurchaseHeader::create($data);
         $purchaseHeader->load(['supplier', 'purchaseItems.product', 'purchaseItems.stockItems']);
 

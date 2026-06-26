@@ -27,6 +27,7 @@ return new class extends Migration
                 'cash', 'card', 'transfer', 'installment',
             ])->default('cash');
             $table->string('reference_code')->nullable()->unique();
+            $table->string('created_by_name')->nullable();
             $table->timestamps();
         });
     }

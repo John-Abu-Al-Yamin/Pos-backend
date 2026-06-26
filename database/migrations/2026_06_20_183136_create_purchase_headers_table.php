@@ -19,6 +19,7 @@ return new class extends Migration
             $table->date('date')->index();
             $table->decimal('total', 10, 2)->default(0);
             $table->enum('type', ['purchase', 'opening_stock'])->default('purchase');
+            $table->string('created_by_name')->nullable();
             $table->softDeletes();
             $table->timestamps();
         });
