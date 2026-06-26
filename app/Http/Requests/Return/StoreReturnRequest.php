@@ -95,6 +95,14 @@ class StoreReturnRequest extends BaseApiRequest
                         );
                     }
                 }
+                $restockingFee = (float) ($data['restocking_fee'] ?? 0);
+                $totalItemRefund = collect($data['items'])->sum(fn ($i) => (float) ($i['refund_amount'] ?? 0));
+                if ($restockingFee > $totalItemRefund) {
+                    $validator->errors()->add(
+                        'restocking_fee',
+                        'رسوم إعادة التخزين لا يمكن أن تتجاوز إجمالي المبلغ المسترد'
+                    );
+                }
             }
         });
     }

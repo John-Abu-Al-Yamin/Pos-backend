@@ -17,6 +17,10 @@ return new class extends Migration
                 ->nullable()
                 ->constrained()
                 ->nullOnDelete();
+            $table->foreignId('user_id')
+                ->nullable()
+                ->constrained()
+                ->nullOnDelete();
             $table->date('date');
             $table->decimal('total', 10, 2)->default(0);
             $table->enum('payment_method', [

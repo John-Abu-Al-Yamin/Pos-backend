@@ -7,6 +7,7 @@ use App\Http\Responses\ApiResponse;
 use App\Models\Returns;
 use App\Models\Sale;
 use App\Services\SaleService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class SaleController extends Controller
@@ -56,6 +57,38 @@ class SaleController extends Controller
         return ApiResponse::success(
             message: 'تم جلب البيع بنجاح',
             data: $sale,
+        );
+    }
+
+    public function destroy(int $id)
+    {
+        $sale = Sale::with('returns')->find($id);
+
+        if (!$sale) {
+            return ApiResponse::error(
+                message: 'البيع غير موجود',
+                statusCode: 404,
+            );
+        }
+
+        if ($sale->returns()->exists()) {
+            return ApiResponse::error(
+                message: 'لا يمكن حذف الفاتورة لأنها تحتوي على مرتجعات. قم بإلغاء المرتجعات أولاً.',
+                statusCode: 422,
+            );
+        }
+
+        try {
+            $sale->delete();
+        } catch (QueryException $e) {
+            return ApiResponse::error(
+                message: 'لا يمكن حذف الفاتورة لأنها مرتبطة ببيانات أخرى.',
+                statusCode: 422,
+            );
+        }
+
+        return ApiResponse::success(
+            message: 'تم حذف البيع بنجاح',
         );
     }
 

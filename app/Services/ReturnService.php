@@ -18,6 +18,17 @@ class ReturnService
         return DB::transaction(function () use ($data, $userId) {
             $sale = Sale::lockForUpdate()->findOrFail($data['sale_id']);
 
+            $previousReturns = Returns::where('sale_id', $sale->id)->lockForUpdate()->get();
+            $alreadyRefundedGross = (float) $previousReturns->sum(fn (Returns $r) => $r->refund_total + $r->restocking_fee);
+            $requestedRefundAmount = collect($data['items'])->sum(fn ($item) => (float) $item['refund_amount']);
+            $remainingRefundable = (float) $sale->total - $alreadyRefundedGross;
+
+            if ($requestedRefundAmount > $remainingRefundable) {
+                throw new \RuntimeException(
+                    "المبلغ المطلوب استرداده ({$requestedRefundAmount} ج.م) يتجاوز المبلغ المتبقي القابل للاسترداد ({$remainingRefundable} ج.م). إجمالي الفاتورة: {$sale->total} ج.م، تم استرداده سابقاً: {$alreadyRefundedGross} ج.م."
+                );
+            }
+
             $return = Returns::create([
                 'sale_id' => $sale->id,
                 'customer_id' => $data['customer_id'] ?? $sale->customer_id,
