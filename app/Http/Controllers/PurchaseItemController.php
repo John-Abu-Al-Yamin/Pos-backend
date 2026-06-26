@@ -114,7 +114,7 @@ class PurchaseItemController extends Controller
 
     public function destroy(int $id)
     {
-        $item = PurchaseItem::find($id);
+        $item = PurchaseItem::with('stockItems')->find($id);
 
         if (!$item) {
             return ApiResponse::error(
@@ -123,10 +123,22 @@ class PurchaseItemController extends Controller
             );
         }
 
+        $hasNonAvailableStock = $item->stockItems
+            ->where('status', '!=', 'available')
+            ->isNotEmpty();
+
+        if ($hasNonAvailableStock) {
+            return ApiResponse::error(
+                message: 'لا يمكن حذف عنصر الشراء لأن بعض عناصر المخزون تم بيعها بالفعل.',
+                statusCode: 422
+            );
+        }
+
         DB::transaction(function () use ($item) {
             $lockedItem = PurchaseItem::lockForUpdate()->findOrFail($item->id);
 
             StockItem::where('purchase_item_id', $lockedItem->id)
+                ->where('status', 'available')
                 ->lockForUpdate()
                 ->delete();
 

@@ -6,6 +6,7 @@ use App\Http\Requests\PurchaseHeader\StorePurchaseHeaderRequest;
 use App\Http\Requests\PurchaseHeader\UpdatePurchaseHeaderRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\PurchaseHeader;
+use App\Models\StockItem;
 use Illuminate\Http\Request;
 
 class PurchaseHeaderController extends Controller
@@ -76,7 +77,7 @@ class PurchaseHeaderController extends Controller
 
     public function destroy(int $id)
     {
-        $purchaseHeader = PurchaseHeader::find($id);
+        $purchaseHeader = PurchaseHeader::with('purchaseItems')->find($id);
 
         if (!$purchaseHeader) {
             return ApiResponse::error(
@@ -85,7 +86,27 @@ class PurchaseHeaderController extends Controller
             );
         }
 
+        $purchaseItemIds = $purchaseHeader->purchaseItems->pluck('id');
+
+        if ($purchaseItemIds->isNotEmpty()) {
+            $hasNonAvailableStock = StockItem::whereIn('purchase_item_id', $purchaseItemIds)
+                ->where('status', '!=', 'available')
+                ->exists();
+
+            if ($hasNonAvailableStock) {
+                return ApiResponse::error(
+                    message: 'لا يمكن حذف هذا الشراء لأن بعض عناصر المخزون تم بيعها بالفعل.',
+                    statusCode: 422
+                );
+            }
+
+            StockItem::whereIn('purchase_item_id', $purchaseItemIds)
+                ->where('status', 'available')
+                ->delete();
+        }
+
         $purchaseHeader->delete();
+
         return ApiResponse::success(
             message: 'تم حذف الشراء بنجاح'
         );
