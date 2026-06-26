@@ -75,6 +75,6 @@ class Returns extends Model
 
     public function returnItems()
     {
-        return $this->hasMany(ReturnItem::class);
+        return $this->hasMany(ReturnItem::class, 'return_id');
     }
 }

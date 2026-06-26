@@ -30,7 +30,7 @@ class ReturnItem extends Model
 
     public function returnHeader()
     {
-        return $this->belongsTo(Returns::class);
+        return $this->belongsTo(Returns::class, 'return_id');
     }
 
     public function saleItem()

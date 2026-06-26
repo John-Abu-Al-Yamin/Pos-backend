@@ -24,6 +24,7 @@ class ReturnService
                 'user_id' => $userId,
                 'return_date' => now()->format('Y-m-d'),
                 'refund_method' => $data['refund_method'],
+                'refund_total' => 0,
                 'restocking_fee' => (float) ($data['restocking_fee'] ?? 0),
                 'reason' => $data['reason'] ?? null,
                 'notes' => $data['notes'] ?? null,

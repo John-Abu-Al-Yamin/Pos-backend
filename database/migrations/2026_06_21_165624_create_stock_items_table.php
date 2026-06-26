@@ -37,17 +37,19 @@ return new class extends Migration
             $table->unsignedTinyInteger('battery_health')->nullable(); // 0 - 100
 
             $table->enum('screen_condition', [
-                'excellent',
+                'perfect',
                 'good',
-                'fair',
+                'scratched',
+                'cracked',
                 'broken'
             ])->nullable();
 
             $table->enum('body_condition', [
-                'excellent',
+                'perfect',
                 'good',
-                'fair',
-                'damaged'
+                'scratched',
+                'dented',
+                'worn'
             ])->nullable();
 
             $table->boolean('face_id_working')->nullable();
