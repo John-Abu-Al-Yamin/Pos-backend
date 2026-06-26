@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Sale\StoreSaleRequest;
 use App\Http\Responses\ApiResponse;
+use App\Models\Returns;
 use App\Models\Sale;
 use App\Services\SaleService;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ class SaleController extends Controller
     public function store(StoreSaleRequest $request)
     {
         $data = $request->validated();
+        $data['user_id'] = $request->user()->id;
         $sale = $this->saleService->createSale($data);
 
         return ApiResponse::success(
@@ -42,7 +44,7 @@ class SaleController extends Controller
 
     public function show(int $id)
     {
-        $sale = Sale::with(['customer', 'saleItems.product', 'saleItems.stockItems'])->find($id);
+        $sale = Sale::with(['customer', 'saleItems.product', 'saleItems.stockItems', 'user'])->find($id);
 
         if (!$sale) {
             return ApiResponse::error(
@@ -53,6 +55,40 @@ class SaleController extends Controller
 
         return ApiResponse::success(
             message: 'تم جلب البيع بنجاح',
+            data: $sale,
+        );
+    }
+
+    public function returnable(int $id)
+    {
+        $sale = Sale::with([
+            'customer',
+            'saleItems.product',
+            'saleItems.stockItems' => function ($query) {
+                $query->where('status', 'sold');
+            },
+            'saleItems.returnItems',
+        ])->find($id);
+
+        if (!$sale) {
+            return ApiResponse::error(
+                message: 'البيع غير موجود',
+                statusCode: 404,
+            );
+        }
+
+        $sale->saleItems->each(function ($item) {
+            $totalSold = (int) $item->quantity;
+            $alreadyReturned = (int) $item->returnItems->sum('quantity');
+            $item->returnable_quantity = max(0, $totalSold - $alreadyReturned);
+            $item->max_returnable = $item->returnable_quantity;
+            $item->returnable_stock_items = $item->stockItems;
+            unset($item->stockItems);
+            unset($item->returnItems);
+        });
+
+        return ApiResponse::success(
+            message: 'تم جلب بيانات المرتجع بنجاح',
             data: $sale,
         );
     }

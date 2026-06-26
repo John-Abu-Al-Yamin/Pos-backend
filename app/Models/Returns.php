@@ -5,29 +5,44 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
-class Sale extends Model
+class Returns extends Model
 {
+    protected $table = 'returns';
+
     protected $fillable = [
+        'sale_id',
         'customer_id',
         'user_id',
-        'date',
-        'total',
-        'payment_method',
+        'return_date',
+        'refund_method',
+        'refund_total',
+        'restocking_fee',
+        'reason',
+        'notes',
         'reference_code',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'return_date' => 'date:Y-m-d',
+            'refund_total' => 'decimal:2',
+            'restocking_fee' => 'decimal:2',
+        ];
+    }
+
     protected static function booted(): void
     {
-        static::creating(function (Sale $sale) {
-            if (empty($sale->reference_code)) {
-                $sale->reference_code = static::generateReferenceCode();
+        static::creating(function (Returns $return) {
+            if (empty($return->reference_code)) {
+                $return->reference_code = static::generateReferenceCode();
             }
         });
     }
 
     public static function generateReferenceCode(): string
     {
-        $prefix = 'SALE-' . now()->format('Ymd') . '-';
+        $prefix = 'RET-' . now()->format('Ymd') . '-';
 
         $lastRecord = static::where('reference_code', 'like', "{$prefix}%")
             ->orderBy('reference_code', 'desc')
@@ -43,14 +58,14 @@ class Sale extends Model
         return $prefix . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
     }
 
+    public function sale()
+    {
+        return $this->belongsTo(Sale::class);
+    }
+
     public function customer()
     {
         return $this->belongsTo(Customer::class);
-    }
-
-    public function saleItems()
-    {
-        return $this->hasMany(SaleItem::class);
     }
 
     public function user()
@@ -58,14 +73,8 @@ class Sale extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function returns()
+    public function returnItems()
     {
-        return $this->hasMany(Returns::class);
-    }
-
-    public function recalculateTotal(): void
-    {
-        $this->total = $this->saleItems()->sum('line_total');
-        $this->saveQuietly();
+        return $this->hasMany(ReturnItem::class);
     }
 }

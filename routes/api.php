@@ -6,6 +6,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseHeaderController;
 use App\Http\Controllers\PurchaseItemController;
+use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StockItemController;
 use App\Http\Controllers\SupplierController;
@@ -78,6 +79,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sales', [SaleController::class, 'index']);
     Route::post('/sales', [SaleController::class, 'store']);
     Route::get('/sales/{id}', [SaleController::class, 'show']);
+
+    // Return routes
+    Route::get('/sales/{id}/returnable', [SaleController::class, 'returnable']);
+    Route::get('/returns', [ReturnController::class, 'index']);
+    Route::post('/returns', [ReturnController::class, 'store']);
+    Route::get('/returns/{id}', [ReturnController::class, 'show']);
 
     // stock_items
     Route::get('/stock-items/available', [StockItemController::class, 'available']);

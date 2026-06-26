@@ -51,6 +51,11 @@ class StockItem extends Model
         return $this->belongsToMany(SaleItem::class, 'sale_item_stock_item');
     }
 
+    public function returnItems()
+    {
+        return $this->hasMany(ReturnItem::class);
+    }
+
     public function scopeAvailable($query)
     {
         return $query->where('status', 'available');

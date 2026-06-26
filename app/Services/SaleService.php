@@ -15,6 +15,7 @@ class SaleService
         return DB::transaction(function () use ($data) {
             $sale = Sale::create([
                 'customer_id' => $data['customer_id'] ?? null,
+                'user_id' => $data['user_id'] ?? null,
                 'date' => $data['date'] ?? now()->format('Y-m-d'),
                 'payment_method' => $data['payment_method'] ?? 'cash',
             ]);
