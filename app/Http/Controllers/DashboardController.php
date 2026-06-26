@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Responses\ApiResponse;
 use App\Services\FinancialService;
+use App\Services\ProductPerformanceService;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
     public function __construct(
         private readonly FinancialService $financialService,
+        private readonly ProductPerformanceService $productPerformanceService,
     ) {}
 
     public function financial(Request $request)
@@ -29,6 +31,27 @@ class DashboardController extends Controller
         return ApiResponse::success(
             message: 'تم جلب البيانات المالية بنجاح',
             data: $metrics
+        );
+    }
+
+    public function productsPerformance(Request $request)
+    {
+        $period = $request->input('period', 'month');
+        $from = $request->input('from');
+        $to = $request->input('to');
+        $limit = (int) $request->input('limit', 10);
+
+        if ($period !== 'custom') {
+            $dates = $this->resolvePeriod($period);
+            $from = $dates['from'];
+            $to = $dates['to'];
+        }
+
+        $performance = $this->productPerformanceService->getPerformance($from, $to, $limit);
+
+        return ApiResponse::success(
+            message: 'تم جلب أداء المنتجات بنجاح',
+            data: $performance
         );
     }
 

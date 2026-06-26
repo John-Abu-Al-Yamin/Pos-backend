@@ -90,6 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Dashboard
     Route::get('/dashboard/financial', [DashboardController::class, 'financial']);
+    Route::get('/dashboard/products-performance', [DashboardController::class, 'productsPerformance']);
 
     // stock_items
     Route::get('/stock-items/available', [StockItemController::class, 'available']);
