@@ -40,7 +40,39 @@ class StockItemController extends Controller
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
-        $items = StockItem::with(['product', 'purchaseItem'])->paginate($perPage);
+        $search = $request->input('search');
+        $categoryId = $request->input('category_id');
+        $productId = $request->input('product_id');
+        $status = $request->input('status');
+        $condition = $request->input('condition');
+
+        $query = StockItem::with(['product.category', 'purchaseItem']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('product', fn($p) => $p->where('name', 'like', "%{$search}%"))
+                  ->orWhere('serial_number', 'like', "%{$search}%")
+                  ->orWhere('notes', 'like', "%{$search}%");
+            });
+        }
+
+        if ($categoryId) {
+            $query->whereHas('product', fn($p) => $p->where('category_id', $categoryId));
+        }
+
+        if ($productId) {
+            $query->where('product_id', $productId);
+        }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        if ($condition) {
+            $query->where('condition', $condition);
+        }
+
+        $items = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         return ApiResponse::success(
             message: 'تم جلب عناصر المخزون بنجاح',

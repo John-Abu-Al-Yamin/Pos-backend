@@ -23,8 +23,25 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
+        $search = $request->input('search');
+        $categoryId = $request->input('category_id');
+        $isSerialized = $request->input('is_serialized');
 
-        $products = Product::paginate($perPage);
+        $query = Product::query();
+
+        if ($search) {
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        if ($isSerialized !== null && $isSerialized !== '') {
+            $query->where('is_serialized', filter_var($isSerialized, FILTER_VALIDATE_BOOLEAN));
+        }
+
+        $products = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         return ApiResponse::success(
             message: 'تم استرجاع المنتجات بنجاح',
