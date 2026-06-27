@@ -13,6 +13,7 @@ class ProductController extends Controller
     public function store(StoreProductRequest $request)
     {
         $data = $request->validated();
+        $data['is_serialized'] = ($data['product_category'] ?? 'mobile') === 'mobile';
         $product = Product::create($data);
         return ApiResponse::success(
             message: 'تم إنشاء المنتج بنجاح',
@@ -26,6 +27,7 @@ class ProductController extends Controller
         $search = $request->input('search');
         $categoryId = $request->input('category_id');
         $isSerialized = $request->input('is_serialized');
+        $productCategory = $request->input('product_category');
 
         $query = Product::query();
 
@@ -39,6 +41,10 @@ class ProductController extends Controller
 
         if ($isSerialized !== null && $isSerialized !== '') {
             $query->where('is_serialized', filter_var($isSerialized, FILTER_VALIDATE_BOOLEAN));
+        }
+
+        if ($productCategory) {
+            $query->where('product_category', $productCategory);
         }
 
         $products = $query->orderBy('created_at', 'desc')->paginate($perPage);
@@ -78,6 +84,9 @@ class ProductController extends Controller
         }
 
         $data = $request->validated();
+        if (isset($data['product_category'])) {
+            $data['is_serialized'] = $data['product_category'] === 'mobile';
+        }
         $product->update($data);
 
         return ApiResponse::success(

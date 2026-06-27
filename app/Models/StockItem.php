@@ -56,6 +56,11 @@ class StockItem extends Model
         return $this->hasMany(ReturnItem::class);
     }
 
+    public function repairParts()
+    {
+        return $this->hasMany(RepairPart::class);
+    }
+
     public function scopeAvailable($query)
     {
         return $query->where('status', 'available');

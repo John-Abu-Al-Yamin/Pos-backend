@@ -68,7 +68,8 @@ return new class extends Migration
                 'reserved',
                 'damaged',
                 'returned',
-                'voided'
+                'voided',
+                'consumed'
             ])->default('available');
 
             $table->timestamps();

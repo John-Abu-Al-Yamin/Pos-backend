@@ -10,6 +10,7 @@ use App\Http\Controllers\PurchaseItemController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StockItemController;
+use App\Http\Controllers\RepairController;
 use App\Http\Controllers\SupplierController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -92,6 +93,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/financial', [DashboardController::class, 'financial']);
     Route::get('/dashboard/products-performance', [DashboardController::class, 'productsPerformance']);
     Route::get('/dashboard/low-stock', [DashboardController::class, 'lowStock']);
+
+    // Repairs
+    Route::get('/repairs', [RepairController::class, 'index']);
+    Route::post('/repairs', [RepairController::class, 'store']);
+    Route::get('/repairs/{id}', [RepairController::class, 'show']);
+    Route::put('/repairs/{id}', [RepairController::class, 'update']);
+    Route::put('/repairs/{id}/complete', [RepairController::class, 'complete']);
+    Route::put('/repairs/{id}/cancel', [RepairController::class, 'cancel']);
+    Route::delete('/repairs/{id}', [RepairController::class, 'destroy']);
 
     // stock_items
     Route::get('/stock-items/available', [StockItemController::class, 'available']);

@@ -14,6 +14,7 @@ class StockItemController extends Controller
         $perPage = (int) $request->input('per_page', 50);
         $search = $request->input('search');
         $categoryId = $request->input('category_id');
+        $productCategory = $request->input('product_category');
 
         $query = StockItem::available()
             ->with(['product.category']);
@@ -27,6 +28,10 @@ class StockItemController extends Controller
 
         if ($categoryId) {
             $query->whereHas('product', fn($p) => $p->where('category_id', $categoryId));
+        }
+
+        if ($productCategory) {
+            $query->whereHas('product', fn($p) => $p->where('product_category', $productCategory));
         }
 
         $items = $query->orderBy('product_id')->paginate($perPage);
@@ -43,6 +48,7 @@ class StockItemController extends Controller
         $search = $request->input('search');
         $categoryId = $request->input('category_id');
         $productId = $request->input('product_id');
+        $productCategory = $request->input('product_category');
         $status = $request->input('status');
         $condition = $request->input('condition');
 
@@ -62,6 +68,10 @@ class StockItemController extends Controller
 
         if ($productId) {
             $query->where('product_id', $productId);
+        }
+
+        if ($productCategory) {
+            $query->whereHas('product', fn($p) => $p->where('product_category', $productCategory));
         }
 
         if ($status) {

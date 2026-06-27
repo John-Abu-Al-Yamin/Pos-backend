@@ -9,7 +9,7 @@ Nothing enters inventory without a **purchase transaction**. This includes:
 - Accessories (model-specific or generic)
 - Opening stock (existing inventory when the system starts)
 
-Stock exits inventory via **sales transactions**. Returns can bring stock back in or mark it as damaged. The system also supports a **Point-of-Sale (POS)** flow that ties directly into sales.
+Stock exits inventory via **sales transactions** or **repair consumption** (spare parts used in maintenance). Returns can bring stock back in or mark it as damaged. The system also supports a **Point-of-Sale (POS)** flow that ties directly into sales and a **Repair** flow for maintenance work orders with spare part tracking.
 
 ---
 
@@ -38,6 +38,7 @@ Schema::create('products', function (Blueprint $table) {
     $table->foreignId('category_id')->constrained()->onDelete('cascade');
     $table->string('name');
     $table->boolean('is_serialized')->default(true); // true = mobile, false = accessory
+    $table->unsignedSmallInteger('min_stock')->default(5); // low-stock threshold
     $table->timestamps();
 });
 ```
@@ -48,6 +49,8 @@ Schema::create('products', function (Blueprint $table) {
 | category_id   | FK → categories |                                         |
 | name          | string          | e.g. "Samsung Galaxy S25"               |
 | is_serialized | boolean         | `true` = mobile (IMEI), `false` = accessory |
+| min_stock     | unsignedSmallInt| Low-stock threshold (default 5), used by Dashboard low-stock alert |
+| product_category | string        | `mobile`, `part`, or `accessory` (default `mobile`). `part` = spare part for repairs |
 
 ### 1.3 Suppliers
 
@@ -91,9 +94,10 @@ Schema::create('purchase_headers', function (Blueprint $table) {
     $table->foreignId('supplier_id')->nullable()->constrained()->nullOnDelete();
     $table->string('reference')->nullable();
     $table->string('reference_code')->nullable();
-    $table->date('date');
+    $table->date('date')->index();
     $table->decimal('total', 10, 2)->default(0);
     $table->enum('type', ['purchase', 'opening_stock'])->default('purchase');
+    $table->string('created_by_name')->nullable();
     $table->softDeletes();
     $table->timestamps();
 });
@@ -105,9 +109,10 @@ Schema::create('purchase_headers', function (Blueprint $table) {
 | supplier_id    | FK → suppliers? | nullable, nullOnDelete               |
 | reference      | string nullable | Optional external reference/document |
 | reference_code | string nullable | Auto-generated (e.g. `BY-PURCHASE-2026-0001`) |
-| date           | date            | Purchase date                        |
+| date           | date            | Purchase date (indexed)              |
 | total          | decimal(10,2)   | Total cost (recalculated from line items) |
 | type           | enum            | purchase / opening_stock             |
+| created_by_name| string nullable | Employee name who created (set from auth user on store) |
 | deleted_at     | timestamp       | Soft deletes (nullable)              |
 
 ### 1.6 Purchase Items (Line Items)
@@ -145,7 +150,7 @@ Schema::create('stock_items', function (Blueprint $table) {
     $table->string('serial_number')->nullable()->unique();
     $table->decimal('cost_price', 10, 2);
     $table->enum('condition', ['new', 'excellent', 'good', 'fair'])->default('new');
-    $table->enum('status', ['available', 'sold', 'reserved', 'damaged', 'returned', 'voided'])->default('available');
+    $table->enum('status', ['available', 'sold', 'reserved', 'damaged', 'returned', 'voided', 'consumed'])->default('available');
     $table->unsignedTinyInteger('battery_health')->nullable();
     $table->enum('screen_condition', ['perfect', 'good', 'scratched', 'cracked', 'broken'])->nullable();
     $table->enum('body_condition', ['perfect', 'good', 'scratched', 'dented', 'worn'])->nullable();
@@ -167,7 +172,7 @@ Schema::create('stock_items', function (Blueprint $table) {
 | serial_number       | string unique?        | Auto-generated for mobiles, null for accessories |
 | cost_price          | decimal(10,2)         | Unit cost from supplier                     |
 | condition           | enum                  | new / excellent / good / fair               |
-| status              | enum                  | available / sold / reserved / damaged / returned / voided |
+| status              | enum                  | available / sold / reserved / damaged / returned / voided / consumed |
 | battery_health      | tinyint nullable      | 0–100 (only for used serialized products)   |
 | screen_condition    | enum nullable         | perfect / good / scratched / cracked / broken |
 | body_condition      | enum nullable         | perfect / good / scratched / dented / worn  |
@@ -187,10 +192,11 @@ Schema::create('sales', function (Blueprint $table) {
     $table->id();
     $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();
     $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
-    $table->date('date');
+    $table->date('date')->index();
     $table->decimal('total', 10, 2)->default(0);
     $table->enum('payment_method', ['cash', 'card', 'transfer', 'installment'])->default('cash');
     $table->string('reference_code')->nullable()->unique();
+    $table->string('created_by_name')->nullable();
     $table->timestamps();
 });
 ```
@@ -200,10 +206,11 @@ Schema::create('sales', function (Blueprint $table) {
 | id             | bigint PK       |                                      |
 | customer_id    | FK → customers? | nullable, nullOnDelete               |
 | user_id        | FK → users?     | The employee who processed the sale  |
-| date           | date            | Sale date                            |
+| date           | date            | Sale date (indexed)                  |
 | total          | decimal(10,2)   | Total sale amount (from line items)  |
 | payment_method | enum            | cash / card / transfer / installment |
 | reference_code | string unique?  | Auto-generated (e.g. `SALE-20260624-0001`) |
+| created_by_name| string nullable | Employee name who processed (set from auth user on store) |
 
 ### 1.9 Sale Items (Line Items)
 
@@ -273,7 +280,69 @@ Schema::create('returns', function (Blueprint $table) {
 | notes          | text nullable   | Additional notes                     |
 | reference_code | string unique?  | Auto-generated (e.g. `RET-20260626-0001`) |
 
-### 1.12 Return Items (Line Items)
+### 1.12 Repair Work Orders
+
+```php
+Schema::create('repairs', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();
+    $table->string('customer_name')->nullable();
+    $table->string('customer_phone')->nullable();
+    $table->string('device_type');
+    $table->string('device_serial')->nullable();
+    $table->text('issue_description');
+    $table->text('work_description')->nullable();
+    $table->decimal('estimated_cost', 10, 2)->default(0);
+    $table->decimal('parts_cost', 10, 2)->default(0);
+    $table->decimal('deposit', 10, 2)->default(0);
+    $table->date('expected_delivery_date')->nullable();
+    $table->enum('status', ['pending', 'in_progress', 'completed', 'cancelled'])->default('pending');
+    $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+    $table->string('reference_code')->nullable()->unique();
+    $table->timestamps();
+});
+```
+
+| Column                | Type            | Notes                                                    |
+| --------------------- | --------------- | -------------------------------------------------------- |
+| id                    | bigint PK       |                                                          |
+| customer_id           | FK → customers? | nullable, nullOnDelete (optional — can use free-text name/phone) |
+| customer_name         | string nullable | Free-text customer name (for walk-in customers)          |
+| customer_phone        | string nullable | Free-text customer phone                                 |
+| device_type           | string          | e.g. "iPhone 14 Pro Max"                                 |
+| device_serial         | string nullable | Customer's device IMEI / serial number                   |
+| issue_description     | text            | Description of the reported problem                      |
+| work_description      | text nullable   | Planned repair work                                      |
+| estimated_cost        | decimal(10,2)   | Quoted cost to the customer                              |
+| parts_cost            | decimal(10,2)   | Auto-calculated sum of used spare part costs             |
+| deposit               | decimal(10,2)   | Advance payment from customer                            |
+| expected_delivery_date | date nullable   | Estimated completion date                                |
+| status                | enum            | pending / in_progress / completed / cancelled            |
+| user_id               | FK → users?     | Employee who created/assigned the repair                 |
+| reference_code        | string unique?  | Auto-generated (e.g. `RPR-20260627-0001`)                |
+
+### 1.13 Repair Parts (Consumed Spare Parts)
+
+```php
+Schema::create('repair_parts', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('repair_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('stock_item_id')->constrained();
+    $table->foreignId('product_id')->constrained();
+    $table->decimal('unit_cost', 10, 2);
+    $table->timestamps();
+});
+```
+
+| Column        | Type            | Notes                                        |
+| ------------- | --------------- | -------------------------------------------- |
+| id            | bigint PK       |                                              |
+| repair_id     | FK → repairs    | CASCADE on delete                            |
+| stock_item_id | FK → stock_items| The specific stock unit consumed             |
+| product_id    | FK → products   | Denormalized for convenience                 |
+| unit_cost     | decimal(10,2)   | Snapshot of cost at time of use              |
+
+### 1.14 Return Items (Line Items)
 
 ```php
 Schema::create('return_items', function (Blueprint $table) {
@@ -306,17 +375,15 @@ Schema::create('return_items', function (Blueprint $table) {
 | reason                     | text nullable   | Reason for this item's return               |
 | notes                      | text nullable   | Item-specific notes                         |
 
-### 1.13 Users
+### 1.15 Users
 
 ```php
 Schema::create('users', function (Blueprint $table) {
     $table->id();
     $table->string('name');
     $table->string('email')->unique();
-    $table->timestamp('email_verified_at')->nullable();
     $table->string('password');
     $table->enum('role', ['employee', 'admin'])->default('employee');
-    $table->rememberToken();
     $table->timestamps();
 });
 ```
@@ -342,7 +409,7 @@ class Category extends Model
 
 class Product extends Model
 {
-    protected $fillable = ['name', 'category_id', 'is_serialized'];
+    protected $fillable = ['name', 'category_id', 'is_serialized', 'min_stock', 'product_category'];
     public function category()      { return $this->belongsTo(Category::class); }
     public function purchaseItems() { return $this->hasMany(PurchaseItem::class); }
     public function stockItems()    { return $this->hasMany(StockItem::class); }
@@ -365,7 +432,7 @@ class PurchaseHeader extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'supplier_id', 'date', 'total', 'type',
+        'supplier_id', 'created_by_name', 'date', 'total', 'type',
         'reference', 'reference_code',
     ];
 
@@ -440,6 +507,7 @@ class StockItem extends Model
     public function purchaseItem() { return $this->belongsTo(PurchaseItem::class); }
     public function saleItems()    { return $this->belongsToMany(SaleItem::class, 'sale_item_stock_item'); }
     public function returnItems()  { return $this->hasMany(ReturnItem::class); }
+    public function repairParts()  { return $this->hasMany(RepairPart::class); }
 
     public function scopeAvailable($query)
     {
@@ -450,7 +518,7 @@ class StockItem extends Model
 class Sale extends Model
 {
     protected $fillable = [
-        'customer_id', 'user_id', 'date', 'total',
+        'customer_id', 'user_id', 'created_by_name', 'date', 'total',
         'payment_method', 'reference_code',
     ];
 
@@ -567,6 +635,66 @@ class ReturnItem extends Model
     public function saleItem()     { return $this->belongsTo(SaleItem::class); }
     public function stockItem()    { return $this->belongsTo(StockItem::class); }
     public function product()      { return $this->belongsTo(Product::class); }
+}
+
+class Repair extends Model
+{
+    protected $fillable = [
+        'customer_id', 'customer_name', 'customer_phone',
+        'device_type', 'device_serial', 'issue_description',
+        'work_description', 'estimated_cost', 'parts_cost',
+        'deposit', 'expected_delivery_date', 'status',
+        'user_id', 'reference_code',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'estimated_cost' => 'decimal:2',
+            'parts_cost' => 'decimal:2',
+            'deposit' => 'decimal:2',
+            'expected_delivery_date' => 'date:Y-m-d',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Repair $repair) {
+            if (empty($repair->reference_code)) {
+                $repair->reference_code = static::generateReferenceCode();
+            }
+        });
+    }
+
+    public static function generateReferenceCode(): string
+    {
+        $prefix = 'RPR-' . now()->format('Ymd') . '-';
+        $lastRecord = static::where('reference_code', 'like', "{$prefix}%")
+            ->orderBy('reference_code', 'desc')
+            ->first();
+        $nextNumber = $lastRecord
+            ? (int) Str::afterLast($lastRecord->reference_code, '-') + 1
+            : 1;
+        return $prefix . str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
+    }
+
+    public function customer()    { return $this->belongsTo(Customer::class); }
+    public function user()        { return $this->belongsTo(User::class); }
+    public function repairParts() { return $this->hasMany(RepairPart::class); }
+}
+
+class RepairPart extends Model
+{
+    protected $fillable = ['repair_id', 'stock_item_id', 'product_id', 'unit_cost'];
+
+    protected function casts(): array
+    {
+        return ['unit_cost' => 'decimal:2'];
+    }
+
+    public function repair()    { return $this->belongsTo(Repair::class); }
+    public function stockItem() { return $this->belongsTo(StockItem::class); }
+    public function product()   { return $this->belongsTo(Product::class); }
 }
 ```
 
@@ -802,10 +930,14 @@ Stock items are primarily created automatically via `StockItemService` when purc
 | serial_number     | `nullable\|string\|unique:stock_items,serial_number` |
 | cost_price        | `required\|numeric\|min:0`                         |
 | condition         | `nullable\|in:new,excellent,good,fair`             |
-| status            | `nullable\|in:available,sold,reserved,damaged,returned,voided` |
+| status            | `nullable\|in:available,sold,reserved,damaged,returned,voided,consumed` |
 | battery_health    | `nullable\|integer\|min:0\|max:100`                |
 | screen_condition  | `nullable\|in:perfect,good,scratched,cracked,broken` |
 | body_condition    | `nullable\|in:perfect,good,scratched,dented,worn`  |
+| face_id_working   | `nullable\|boolean`                                 |
+| fingerprint_working | `nullable\|boolean`                               |
+| camera_working    | `nullable\|boolean`                                 |
+| speaker_working   | `nullable\|boolean`                                 |
 | accessories       | `nullable\|string`                                  |
 | notes             | `nullable\|string`                                  |
 
@@ -816,6 +948,8 @@ Stock items are primarily created automatically via `StockItemService` when purc
 | name          | `required\|string`              |
 | category_id   | `required`                      |
 | is_serialized | `boolean`                       |
+| min_stock     | `sometimes\|integer\|min:0`     |
+| product_category | `required\|in:mobile,part,accessory` |
 
 #### Customer
 
@@ -855,6 +989,20 @@ Stock items are primarily created automatically via `StockItemService` when purc
 | items.*.restock              | `nullable\|boolean`               |
 | items.*.reason               | `nullable\|string`                |
 | items.*.notes                | `nullable\|string`                |
+
+#### Repair
+
+| Field                           | Rule                              |
+| ------------------------------- | --------------------------------- |
+| device_type                     | `required\|string\|max:255`       |
+| issue_description               | `required\|string`                |
+| customer_id                     | `nullable\|exists:customers,id`   |
+| estimated_cost                  | `nullable\|numeric\|min:0`        |
+| deposit                         | `nullable\|numeric\|min:0`        |
+| expected_delivery_date          | `nullable\|date`                  |
+| status                          | `sometimes\|in:pending,in_progress,completed,cancelled` |
+| parts                           | `nullable\|array`                 |
+| parts.*.stock_item_id           | `required\|exists:stock_items,id` |
 
 ### 3.6 API Request: Opening Stock
 
@@ -998,6 +1146,33 @@ POST /api/returns
 }
 ```
 
+### 4.7 API: Repairs CRUD
+
+| Method | Endpoint                     | Description                               |
+| ------ | ---------------------------- | ----------------------------------------- |
+| GET    | `/api/repairs`               | Paginated list (with customer, repairParts, user) |
+| POST   | `/api/repairs`               | Create repair (with optional parts consumption) |
+| GET    | `/api/repairs/{id}`          | Single repair (with full relations)       |
+| PUT    | `/api/repairs/{id}`          | Update repair (replaces parts list)       |
+| PUT    | `/api/repairs/{id}/complete` | Mark repair as completed                  |
+| PUT    | `/api/repairs/{id}/cancel`   | Cancel repair (restocks consumed parts)   |
+| DELETE | `/api/repairs/{id}`          | Delete repair (restocks consumed parts)   |
+
+**What happens on repair creation (inside a DB transaction via `RepairService::createRepair()`):**
+
+1. Creates the `Repair` header with auto-generated `reference_code` (`RPR-{YYYYMMDD}-{NNNN}`).
+2. If `parts` array is provided, for each part:
+   - Locks the stock item with `lockForUpdate()`, validates it's `available`.
+   - Creates a `RepairPart` record with a snapshot of `unit_cost` from the stock item.
+   - Marks the stock item status as `consumed`.
+3. Auto-calculates `parts_cost` as the sum of all consumed parts.
+4. Returns the repair with loaded relations.
+
+**Cancel flow (`RepairService::cancelRepair()`):**
+1. All `consumed` stock items associated with the repair are restored to `available`.
+2. All `RepairPart` records are deleted.
+3. Repair status set to `cancelled`.
+
 ---
 
 ## 5. API Routes
@@ -1069,6 +1244,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/returns', [ReturnController::class, 'index']);
     Route::post('/returns', [ReturnController::class, 'store']);
     Route::get('/returns/{id}', [ReturnController::class, 'show']);
+
+    // Repairs
+    Route::get('/repairs', [RepairController::class, 'index']);
+    Route::post('/repairs', [RepairController::class, 'store']);
+    Route::get('/repairs/{id}', [RepairController::class, 'show']);
+    Route::put('/repairs/{id}', [RepairController::class, 'update']);
+    Route::put('/repairs/{id}/complete', [RepairController::class, 'complete']);
+    Route::put('/repairs/{id}/cancel', [RepairController::class, 'cancel']);
+    Route::delete('/repairs/{id}', [RepairController::class, 'destroy']);
+
+    // Dashboard
+    Route::get('/dashboard/financial', [DashboardController::class, 'financial']);
+    Route::get('/dashboard/products-performance', [DashboardController::class, 'productsPerformance']);
+    Route::get('/dashboard/low-stock', [DashboardController::class, 'lowStock']);
 
     // Stock Items (read-only via API)
     Route::get('/stock-items/available', [StockItemController::class, 'available']);
@@ -1256,7 +1445,58 @@ Called by `ReturnController@store`. Returns the created `Returns` model with loa
 4. Calculates `refund_total` (sum of refund_amounts minus restocking_fee).
 5. Dispatches `ReturnProcessed` event.
 
-### 6.6 Total Recalculation
+### 6.6 FinancialService
+
+Handles dashboard financial metrics. Located at `app/Services/FinancialService.php`.
+
+#### `getMetrics(?string $from, ?string $to): array`
+
+Called by `DashboardController@financial`. Returns an associative array with:
+
+| Key | Description |
+|---|---|
+| `totalPurchases` | Sum of all purchase header totals in period |
+| `totalSales` | Sum of all sale totals in period |
+| `totalRefunds` | Sum of all refund totals in period |
+| `cashFlow` | `totalSales - totalRefunds - totalPurchases` |
+| `grossProfit` | `totalSales - costOfGoodsSold - totalRefunds` |
+
+Uses private helper methods (`totalPurchases`, `totalSales`, `totalRefunds`, `costOfGoodsSold`) each scoped to the optional date range.
+
+### 6.7 ProductPerformanceService
+
+Handles best/worst selling product analytics. Located at `app/Services/ProductPerformanceService.php`.
+
+#### `getPerformance(?string $from, ?string $to, int $limit = 10): array`
+
+Called by `DashboardController@productsPerformance`. Returns:
+
+```json
+{
+    "bestSelling": [ { "product_id": 1, "name": "...", "total_sold": 50, "total_revenue": 375000.00 }, ... ],
+    "worstSelling": [ { "product_id": 2, "name": "...", "total_sold": 0, "total_revenue": 0 }, ... ]
+}
+```
+
+Uses `leftJoinSub` for worst-selling products to include products with zero sales.
+
+### 6.8 RepairService
+
+Handles repair CRUD with transactional stock-item consumption. Located at `app/Services/RepairService.php`.
+
+#### `createRepair(array $data): Repair`
+Creates a repair header and optionally consumes spare parts from inventory.
+
+#### `updateRepair(Repair $repair, array $data): Repair`
+Updates repair fields and replaces the parts list (old parts are returned to `available` status, new parts are consumed).
+
+#### `completeRepair(Repair $repair): Repair`
+Sets status to `completed`.
+
+#### `cancelRepair(Repair $repair): Repair`
+Returns all consumed parts back to `available` status, deletes repair_parts records, sets status to `cancelled`.
+
+### 6.9 Total Recalculation
 
 Both `PurchaseHeader::recalculateTotal()` and `Sale::recalculateTotal()` are called after any line item is created, updated, or deleted. They sum the `line_total` of all associated items and save the result quietly.
 
@@ -1314,3 +1554,14 @@ Located at `app/Events/ReturnProcessed.php`. Dispatched by `ReturnService::creat
 | Base form request          | `BaseApiRequest`                             | Structured validation error responses for all form requests |
 | Available stock query      | `StockItem::scopeAvailable()`                | Query scope for filtering `status = 'available'` items     |
 | Return processed event     | `ReturnProcessed`                            | Dispatched after return is successfully processed          |
+| Dashboard financials       | `FinancialService` / `DashboardController`   | Aggregated purchase/sale/refund metrics with date filtering |
+| Product performance        | `ProductPerformanceService`                  | Best/worst selling product analytics                       |
+| Low-stock alert            | `DashboardController@lowStock`               | Products where available inventory < `min_stock` threshold |
+| Low-stock threshold        | `products.min_stock`                         | Per-product threshold for low-stock alerts (default 5)     |
+| Created-by tracking        | `created_by_name` on `purchase_headers`/`sales` | Employee name stamped on transactions at creation       |
+| Repair work orders         | `repairs` + `repair_parts`                       | Maintenance tracking with spare part consumption        |
+| Spare part classification  | `products.product_category = 'part'`                 | Distinguishes spare parts from mobile/accessory        |
+| Part consumption           | `RepairService`                                  | Transactional consumption of stock items in repairs     |
+| Part restock on cancel     | `RepairService::cancelRepair()`                  | Returns consumed parts to `available` on cancel/delete  |
+| Reference code (repair)    | `Repair::generateReferenceCode()`                | Auto-generates `RPR-{YYYYMMDD}-{NNNN}` on create        |
+| Consumed stock status      | `stock_items.status = 'consumed'`                | Tracks parts used in repairs, distinct from `sold`      |

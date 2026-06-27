@@ -27,7 +27,8 @@ class StoreProductRequest extends BaseApiRequest
             //
             'name' => 'required|string',
             'category_id' => 'required',
-            'is_serialized' => 'boolean',
+            'is_serialized' => 'nullable|boolean',
+            'product_category' => 'required|string|in:mobile,part,accessory',
         ];
     }
 
@@ -38,7 +39,8 @@ class StoreProductRequest extends BaseApiRequest
             'name.string' => 'اسم المنتج يجب أن يكون نصًا',
             'category_id.required' => 'معرف الفئة مطلوب',
             'is_serialized.boolean' => 'يجب اختيار نوع المنتج (موبايل أو إكسسوار)',
-
+            'product_category.required' => 'تصنيف المنتج مطلوب',
+            'product_category.in' => 'تصنيف المنتج يجب أن يكون: موبايل، قطعة غيار، أو اكسسوار',
         ];
     }
 }
