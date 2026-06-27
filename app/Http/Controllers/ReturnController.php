@@ -29,15 +29,40 @@ class ReturnController extends Controller
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
+        $search = $request->input('search');
+        $refundMethod = $request->input('refund_method');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
 
-        $returns = Returns::with([
+        $query = Returns::with([
             'sale',
             'customer',
             'user',
             'returnItems.product',
-        ])
-            ->orderBy('id', 'desc')
-            ->paginate($perPage);
+        ]);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhereHas('customer', fn($c) => $c->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('sale', fn($s) => $s->where('reference_code', 'like', "%{$search}%"))
+                  ->orWhereHas('returnItems.product', fn($p) => $p->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($refundMethod) {
+            $query->where('refund_method', $refundMethod);
+        }
+
+        if ($dateFrom) {
+            $query->whereDate('return_date', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $query->whereDate('return_date', '<=', $dateTo);
+        }
+
+        $returns = $query->orderBy('id', 'desc')->paginate($perPage);
 
         return ApiResponse::success(
             message: 'تم جلب المرتجعات بنجاح',

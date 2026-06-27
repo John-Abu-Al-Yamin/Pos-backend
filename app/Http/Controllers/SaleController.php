@@ -37,10 +37,35 @@ class SaleController extends Controller
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
+        $search = $request->input('search');
+        $paymentMethod = $request->input('payment_method');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
 
-        $sales = Sale::with(['customer', 'saleItems.product', 'saleItems.stockItems'])
-            ->orderBy('id', 'desc')
-            ->paginate($perPage);
+        $query = Sale::with(['customer', 'saleItems.product', 'saleItems.stockItems']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhereHas('customer', fn($c) => $c->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('saleItems.product', fn($p) => $p->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('saleItems.stockItems', fn($s) => $s->where('serial_number', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($paymentMethod) {
+            $query->where('payment_method', $paymentMethod);
+        }
+
+        if ($dateFrom) {
+            $query->whereDate('date', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $query->whereDate('date', '<=', $dateTo);
+        }
+
+        $sales = $query->orderBy('id', 'desc')->paginate($perPage);
 
         return ApiResponse::success(
             message: 'تم جلب المبيعات بنجاح',

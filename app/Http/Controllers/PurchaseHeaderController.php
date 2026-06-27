@@ -32,9 +32,34 @@ class PurchaseHeaderController extends Controller
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
+        $search = $request->input('search');
+        $type = $request->input('type');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
 
-        $purchaseHeaders = PurchaseHeader::with(['supplier', 'purchaseItems.product', 'purchaseItems.stockItems'])
-            ->paginate($perPage);
+        $query = PurchaseHeader::with(['supplier', 'purchaseItems.product', 'purchaseItems.stockItems']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhere('reference', 'like', "%{$search}%")
+                  ->orWhereHas('supplier', fn($s) => $s->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($type) {
+            $query->where('type', $type);
+        }
+
+        if ($dateFrom) {
+            $query->whereDate('date', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $query->whereDate('date', '<=', $dateTo);
+        }
+
+        $purchaseHeaders = $query->orderBy('id', 'desc')->paginate($perPage);
 
         return ApiResponse::success(
             message: 'تم جلب الشراء بنجاح',
