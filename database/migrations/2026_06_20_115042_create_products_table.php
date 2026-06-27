@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('category_id')->constrained()->onDelete('cascade');
             $table->string('name');
             $table->boolean('is_serialized')->default(true); //true = mobile, false = accessory
+            $table->unsignedSmallInteger('min_stock')->default(5);
             $table->timestamps();
         });
     }

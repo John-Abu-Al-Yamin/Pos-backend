@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Responses\ApiResponse;
+use App\Models\Product;
+use App\Models\StockItem;
 use App\Services\FinancialService;
 use App\Services\ProductPerformanceService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -52,6 +55,32 @@ class DashboardController extends Controller
         return ApiResponse::success(
             message: 'تم جلب أداء المنتجات بنجاح',
             data: $performance
+        );
+    }
+
+    public function lowStock()
+    {
+        $items = Product::select([
+                'products.id',
+                'products.name',
+                'products.is_serialized',
+                'products.min_stock',
+                'categories.name as category_name',
+                DB::raw('COUNT(stock_items.id) as available_count'),
+            ])
+            ->join('categories', 'products.category_id', '=', 'categories.id')
+            ->leftJoin('stock_items', function ($join) {
+                $join->on('products.id', '=', 'stock_items.product_id')
+                     ->where('stock_items.status', '=', 'available');
+            })
+            ->groupBy('products.id', 'products.name', 'products.is_serialized', 'products.min_stock', 'categories.name')
+            ->havingRaw('available_count < products.min_stock')
+            ->orderBy('available_count')
+            ->get();
+
+        return ApiResponse::success(
+            message: 'تم جلب المنتجات منخفضة المخزون بنجاح',
+            data: $items,
         );
     }
 
