@@ -10,10 +10,10 @@ class ProductSeeder extends Seeder
 {
     public function run(): void
     {
-        $apple = Category::where('name', 'Apple')->first();
-        $samsung = Category::where('name', 'Samsung')->first();
-        $google = Category::where('name', 'Google')->first();
-        $accessories = Category::where('name', 'Accessories')->first();
+        $apple = Category::where('name', 'أبل')->first();
+        $samsung = Category::where('name', 'سامسونج')->first();
+        $google = Category::where('name', 'جوجل')->first();
+        $accessories = Category::where('name', 'إكسسوارات')->first();
 
         $products = [
             // Apple products (serialized)
@@ -31,9 +31,9 @@ class ProductSeeder extends Seeder
             ['name' => 'Pixel 8', 'category_id' => $google->id, 'is_serialized' => true],
             ['name' => 'Pixel 7a', 'category_id' => $google->id, 'is_serialized' => true],
             // Accessories (non-serialized)
-            ['name' => 'USB-C Fast Charger', 'category_id' => $accessories->id, 'is_serialized' => false],
-            ['name' => 'Silicone Phone Case', 'category_id' => $accessories->id, 'is_serialized' => false],
-            ['name' => 'Tempered Glass Screen Protector', 'category_id' => $accessories->id, 'is_serialized' => false],
+            ['name' => 'شاحن سريع USB-C', 'category_id' => $accessories->id, 'is_serialized' => false],
+            ['name' => 'جراب هاتف سيليكون', 'category_id' => $accessories->id, 'is_serialized' => false],
+            ['name' => 'حامي شاشة زجاجي مقسى', 'category_id' => $accessories->id, 'is_serialized' => false],
         ];
 
         foreach ($products as $product) {

@@ -109,7 +109,7 @@ class RepairController extends Controller
         );
     }
 
-    public function complete(int $id)
+    public function complete(Request $request, int $id)
     {
         $repair = Repair::find($id);
 
@@ -127,10 +127,38 @@ class RepairController extends Controller
             );
         }
 
-        $repair = $this->repairService->completeRepair($repair);
+        $markAsPaid = (bool) $request->input('mark_as_paid', false);
+
+        $repair = $this->repairService->completeRepair($repair, $markAsPaid);
 
         return ApiResponse::success(
-            message: 'تم إكمال أمر الإصلاح بنجاح',
+            message: $markAsPaid ? 'تم إكمال أمر الإصلاح وتسجيل الدفع بنجاح' : 'تم إكمال أمر الإصلاح بنجاح',
+            data: $repair,
+        );
+    }
+
+    public function pay(int $id)
+    {
+        $repair = Repair::find($id);
+
+        if (!$repair) {
+            return ApiResponse::error(
+                message: 'أمر الإصلاح غير موجود',
+                statusCode: 404,
+            );
+        }
+
+        if ($repair->payment_status === 'paid') {
+            return ApiResponse::error(
+                message: 'تم دفع أمر الإصلاح بالفعل',
+                statusCode: 422,
+            );
+        }
+
+        $repair = $this->repairService->payRepair($repair);
+
+        return ApiResponse::success(
+            message: 'تم تسجيل الدفع بنجاح',
             data: $repair,
         );
     }

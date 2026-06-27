@@ -17,22 +17,22 @@ class ReturnSeeder extends Seeder
         $admin = User::where('email', 'admin@pos.com')->first();
         $customers = Customer::all()->keyBy('name');
 
-        // Return 1: Emma Williams returns Pixel 8 Pro from Sale 3 (defective camera)
+        // Return 1: مريم علي ترجع Pixel 8 Pro من البيعة 3 (كاميرا معطلة)
         $sale3 = Sale::where('date', '2026-04-15')
-            ->where('customer_id', $customers['Emma Williams']->id)
+            ->where('customer_id', $customers['مريم علي']->id)
             ->first();
 
         if ($sale3) {
             $return1 = Returns::create([
                 'sale_id' => $sale3->id,
-                'customer_id' => $customers['Emma Williams']->id,
+                'customer_id' => $customers['مريم علي']->id,
                 'user_id' => $admin->id,
                 'return_date' => '2026-04-18',
                 'refund_method' => 'cash',
                 'refund_total' => 949.00,
                 'restocking_fee' => 50.00,
-                'reason' => 'Defective camera - blurry photos in all modes',
-                'notes' => 'Customer reported issue within 3 days of purchase. Camera module confirmed faulty during inspection.',
+                'reason' => 'كاميرا معطلة - صور ضبابية في جميع الأوضاع',
+                'notes' => 'أبلغ العميل عن المشكلة خلال 3 أيام من الشراء. تم تأكيد عطل وحدة الكاميرا أثناء الفحص.',
                 'reference_code' => 'RET-20260418-0001',
             ]);
 
@@ -52,34 +52,34 @@ class ReturnSeeder extends Seeder
                     'refund_amount' => 999.00,
                     'condition_after_inspection' => 'fair',
                     'restock' => true,
-                    'reason' => 'Camera not focusing - hardware defect',
-                    'notes' => 'Device inspected, camera module needs replacement. Restocked after repair.',
+                    'reason' => 'الكاميرا لا تركز - عطل في الجهاز',
+                    'notes' => 'تم فحص الجهاز، وحدة الكاميرا تحتاج استبدال. تم إعادة التخزين بعد الإصلاح.',
                 ]);
 
                 if ($stockItem) {
                     $stockItem->status = 'returned';
-                    $stockItem->notes = 'Returned - camera defect. Inspected and repaired.';
+                    $stockItem->notes = 'مرتجع - عطل في الكاميرا. تم الفحص والإصلاح.';
                     $stockItem->save();
                 }
             }
         }
 
-        // Return 2: Michael Brown returns iPhone 15 Pro Max from Sale 4 (changed mind)
+        // Return 2: ميخائيل إبراهيم يرجع iPhone 15 Pro Max من البيعة 4 (تغيير رأي)
         $sale4 = Sale::where('date', '2026-04-20')
-            ->where('customer_id', $customers['Michael Brown']->id)
+            ->where('customer_id', $customers['ميخائيل إبراهيم']->id)
             ->first();
 
         if ($sale4) {
             $return2 = Returns::create([
                 'sale_id' => $sale4->id,
-                'customer_id' => $customers['Michael Brown']->id,
+                'customer_id' => $customers['ميخائيل إبراهيم']->id,
                 'user_id' => $admin->id,
                 'return_date' => '2026-04-22',
                 'refund_method' => 'card',
                 'refund_total' => 1299.00,
                 'restocking_fee' => 0.00,
-                'reason' => 'Customer changed mind - decided to keep current phone',
-                'notes' => 'Full refund within 14-day return window. Device in perfect condition.',
+                'reason' => 'العميل غير رأيه - قرر الاحتفاظ بهاتفه الحالي',
+                'notes' => 'استرداد كامل خلال فترة الإرجاع 14 يوماً. الجهاز بحالة ممتازة.',
                 'reference_code' => 'RET-20260422-0001',
             ]);
 
@@ -97,34 +97,34 @@ class ReturnSeeder extends Seeder
                     'refund_amount' => 1299.00,
                     'condition_after_inspection' => 'new',
                     'restock' => true,
-                    'reason' => 'Change of mind - unopened condition',
-                    'notes' => 'Device sealed in original box, no signs of use.',
+                    'reason' => 'تغيير رأي - الجهاز لم يفتح',
+                    'notes' => 'الجهاز مغلف في العلبة الأصلية، لا توجد علامات استخدام.',
                 ]);
 
                 if ($stockItem) {
                     $stockItem->status = 'available';
-                    $stockItem->notes = 'Returned - change of mind. Restocked as new.';
+                    $stockItem->notes = 'مرتجع - تغيير رأي. تم إعادة التخزين كجهاز جديد.';
                     $stockItem->save();
                 }
             }
         }
 
-        // Return 3: Sarah Johnson returns iPhone 15 from Sale 1 (screen issue)
+        // Return 3: سارة أحمد ترجع iPhone 15 من البيعة 1 (مشكلة شاشة)
         $sale1 = Sale::where('date', '2026-04-05')
-            ->where('customer_id', $customers['Sarah Johnson']->id)
+            ->where('customer_id', $customers['سارة أحمد']->id)
             ->first();
 
         if ($sale1) {
             $return3 = Returns::create([
                 'sale_id' => $sale1->id,
-                'customer_id' => $customers['Sarah Johnson']->id,
+                'customer_id' => $customers['سارة أحمد']->id,
                 'user_id' => $admin->id,
                 'return_date' => '2026-05-01',
                 'refund_method' => 'bank_transfer',
                 'refund_total' => 974.00,
                 'restocking_fee' => 25.00,
-                'reason' => 'Screen flickering intermittently after 3 weeks of use',
-                'notes' => 'Screen issue confirmed. Device out of 14-day window, charged 25 restocking fee.',
+                'reason' => 'وميض الشاشة بشكل متقطع بعد 3 أسابيع من الاستخدام',
+                'notes' => 'تم تأكيد مشكلة الشاشة. الجهاز خارج فترة 14 يوماً، تم فرض رسوم إعادة تخزين 25.',
                 'reference_code' => 'RET-20260501-0001',
             ]);
 
@@ -144,13 +144,13 @@ class ReturnSeeder extends Seeder
                     'refund_amount' => 999.00,
                     'condition_after_inspection' => 'damaged',
                     'restock' => false,
-                    'reason' => 'Screen flickering - hardware failure',
-                    'notes' => 'Display assembly faulty. Device marked as damaged, returned to supplier.',
+                    'reason' => 'وميض الشاشة - عطل في الجهاز',
+                    'notes' => 'تجميعة الشاشة معطلة. تم وضع علامة تالف على الجهاز، وإعادته للمورد.',
                 ]);
 
                 if ($stockItem) {
                     $stockItem->status = 'damaged';
-                    $stockItem->notes = 'Returned - screen flickering. Sent to supplier for warranty.';
+                    $stockItem->notes = 'مرتجع - وميض الشاشة. تم الإرسال للمورد للضمان.';
                     $stockItem->save();
                 }
             }

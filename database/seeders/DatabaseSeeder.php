@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             SaleSeeder::class,
             ReturnSeeder::class,
             SparePartSeeder::class,
+            RepairSeeder::class,
         ]);
     }
 }

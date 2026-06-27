@@ -10,7 +10,7 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         $admin = User::create([
-            'name' => 'Admin',
+            'name' => 'مدير',
             'email' => 'admin@pos.com',
             'password' => 'password',
         ]);
@@ -18,7 +18,7 @@ class UserSeeder extends Seeder
         $admin->save();
 
         $employee = User::create([
-            'name' => 'Staff Sarah',
+            'name' => 'الموظفة سارة',
             'email' => 'sarah@pos.com',
             'password' => 'password',
         ]);

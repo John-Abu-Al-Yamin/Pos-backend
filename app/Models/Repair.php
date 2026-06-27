@@ -18,6 +18,7 @@ class Repair extends Model
         'estimated_cost',
         'parts_cost',
         'deposit',
+        'payment_status',
         'expected_delivery_date',
         'status',
         'user_id',
@@ -30,8 +31,24 @@ class Repair extends Model
             'estimated_cost' => 'decimal:2',
             'parts_cost' => 'decimal:2',
             'deposit' => 'decimal:2',
+            'payment_status' => 'string',
             'expected_delivery_date' => 'date:Y-m-d',
         ];
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->payment_status === 'paid';
+    }
+
+    public function markAsPaid(): void
+    {
+        $this->update(['payment_status' => 'paid']);
+    }
+
+    public function markPaymentPartial(): void
+    {
+        $this->update(['payment_status' => 'partial']);
     }
 
     protected static function booted(): void

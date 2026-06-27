@@ -45,6 +45,7 @@ class RepairService
                 'customer_id', 'customer_name', 'customer_phone',
                 'device_type', 'device_serial', 'issue_description',
                 'work_description', 'estimated_cost', 'deposit',
+                'payment_status',
                 'expected_delivery_date', 'status',
             ];
 
@@ -105,10 +106,25 @@ class RepairService
         $repair->updateQuietly(['parts_cost' => $totalPartsCost]);
     }
 
-    public function completeRepair(Repair $repair): Repair
+    public function completeRepair(Repair $repair, bool $markAsPaid = false): Repair
+    {
+        return DB::transaction(function () use ($repair, $markAsPaid) {
+            $updates = ['status' => 'completed'];
+
+            if ($markAsPaid) {
+                $updates['payment_status'] = 'paid';
+            }
+
+            $repair->update($updates);
+
+            return $repair;
+        });
+    }
+
+    public function payRepair(Repair $repair): Repair
     {
         return DB::transaction(function () use ($repair) {
-            $repair->update(['status' => 'completed']);
+            $repair->update(['payment_status' => 'paid']);
             return $repair;
         });
     }

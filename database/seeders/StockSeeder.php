@@ -15,16 +15,16 @@ class StockSeeder extends Seeder
 
     public function run(): void
     {
-        $techDistrib = Supplier::where('name', 'TechDistrib Ltd')->first();
-        $mobileWholesale = Supplier::where('name', 'MobileWholesale UK')->first();
-        $phoneParts = Supplier::where('name', 'PhoneParts Direct')->first();
+        $techDistrib = Supplier::where('name', 'تيك للتوزيع')->first();
+        $mobileWholesale = Supplier::where('name', 'الجملة للجوال')->first();
+        $phoneParts = Supplier::where('name', 'قطع الهواتف المباشر')->first();
 
         // Purchase 1: Opening Stock — Apr 1
         $p1 = PurchaseHeader::create([
             'supplier_id' => $techDistrib->id,
             'date' => '2026-04-01',
             'type' => 'opening_stock',
-            'reference' => 'Initial inventory for Q2 2026',
+            'reference' => 'مخزون أولي للربع الثاني 2026',
         ]);
         $this->addItem($p1, 'iPhone 15 Pro Max', 3, 950.00);
         $this->addItem($p1, 'iPhone 15', 3, 750.00);
@@ -38,7 +38,7 @@ class StockSeeder extends Seeder
             'supplier_id' => $mobileWholesale->id,
             'date' => '2026-05-15',
             'type' => 'purchase',
-            'reference' => 'Mid-month wholesale order',
+            'reference' => 'طلب جملة منتصف الشهر',
         ]);
         $this->addItem($p2, 'Galaxy Z Flip 6', 2, 800.00);
         $this->addItem($p2, 'Pixel 8 Pro', 2, 700.00);
@@ -52,11 +52,11 @@ class StockSeeder extends Seeder
             'supplier_id' => $phoneParts->id,
             'date' => '2026-05-20',
             'type' => 'purchase',
-            'reference' => 'Accessories bulk order',
+            'reference' => 'طلب إكسسوارات بالجملة',
         ]);
-        $this->addItem($p3, 'USB-C Fast Charger', 20, 8.00);
-        $this->addItem($p3, 'Silicone Phone Case', 15, 3.50);
-        $this->addItem($p3, 'Tempered Glass Screen Protector', 30, 2.00);
+        $this->addItem($p3, 'شاحن سريع USB-C', 20, 8.00);
+        $this->addItem($p3, 'جراب هاتف سيليكون', 15, 3.50);
+        $this->addItem($p3, 'حامي شاشة زجاجي مقسى', 30, 2.00);
         $p3->recalculateTotal();
 
         // Purchase 4: Top-up — Jun 10
@@ -64,7 +64,7 @@ class StockSeeder extends Seeder
             'supplier_id' => $techDistrib->id,
             'date' => '2026-06-10',
             'type' => 'purchase',
-            'reference' => 'Restock fast-moving items',
+            'reference' => 'إعادة تزويد العناصر سريعة الحركة',
         ]);
         $this->addItem($p4, 'iPhone 15 Pro Max', 1, 940.00);
         $this->addItem($p4, 'Galaxy A55', 3, 250.00);
@@ -103,7 +103,7 @@ class StockSeeder extends Seeder
                 $data['fingerprint_working'] = true;
                 $data['camera_working'] = true;
                 $data['speaker_working'] = true;
-                $data['accessories'] = 'Charger, Cable, SIM Ejector, Box';
+                $data['accessories'] = 'شاحن، كابل، مشبك SIM، علبة';
             }
 
             StockItem::create($data);

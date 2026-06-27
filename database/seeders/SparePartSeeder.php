@@ -14,26 +14,26 @@ class SparePartSeeder extends Seeder
 {
     public function run(): void
     {
-        $category = Category::firstOrCreate(['name' => 'Spare Parts']);
+        $category = Category::firstOrCreate(['name' => 'قطع غيار']);
 
-        $supplier = Supplier::where('name', 'PhoneParts Direct')->first();
+        $supplier = Supplier::where('name', 'قطع الهواتف المباشر')->first();
 
         $parts = [
-            ['name' => 'iPhone 15 Pro Max Screen Assembly', 'cost' => 120.00, 'qty' => 3],
-            ['name' => 'iPhone 14 Battery', 'cost' => 35.00, 'qty' => 5],
-            ['name' => 'Galaxy S24 Ultra Screen', 'cost' => 95.00, 'qty' => 2],
-            ['name' => 'USB-C Charging Port Flex', 'cost' => 12.00, 'qty' => 10],
-            ['name' => 'iPhone 15 Pro Max Back Glass', 'cost' => 45.00, 'qty' => 3],
-            ['name' => 'Galaxy A55 LCD Display', 'cost' => 55.00, 'qty' => 2],
-            ['name' => 'Taptic Engine (iPhone 15)', 'cost' => 18.00, 'qty' => 4],
-            ['name' => 'Speaker Module (Generic)', 'cost' => 8.00, 'qty' => 8],
-            ['name' => 'Pixel 8 Pro Battery', 'cost' => 30.00, 'qty' => 2],
-            ['name' => 'Samsung Galaxy Tab A9 Screen', 'cost' => 65.00, 'qty' => 1],
-            ['name' => 'iPhone 15 Pro Max Camera Module', 'cost' => 85.00, 'qty' => 2],
-            ['name' => 'Side Button Flex Cable (iPhone)', 'cost' => 6.00, 'qty' => 10],
-            ['name' => 'Pixel 7a Screen Assembly', 'cost' => 70.00, 'qty' => 2],
-            ['name' => 'iPhone SE 3rd Gen Battery', 'cost' => 28.00, 'qty' => 3],
-            ['name' => 'Galaxy Z Flip 6 Hinge Assembly', 'cost' => 150.00, 'qty' => 1],
+            ['name' => 'طقم شاشة آيفون 15 برو ماكس', 'cost' => 120.00, 'qty' => 3],
+            ['name' => 'بطارية آيفون 14', 'cost' => 35.00, 'qty' => 5],
+            ['name' => 'شاشة جالاكسي S24 ألترا', 'cost' => 95.00, 'qty' => 2],
+            ['name' => 'كابل منفذ شحن USB-C', 'cost' => 12.00, 'qty' => 10],
+            ['name' => 'زجاج خلفي لآيفون 15 برو ماكس', 'cost' => 45.00, 'qty' => 3],
+            ['name' => 'شاشة LCD جالاكسي A55', 'cost' => 55.00, 'qty' => 2],
+            ['name' => 'محرك تابتيش (آيفون 15)', 'cost' => 18.00, 'qty' => 4],
+            ['name' => 'وحدة سماعة (عام)', 'cost' => 8.00, 'qty' => 8],
+            ['name' => 'بطارية بكسل 8 برو', 'cost' => 30.00, 'qty' => 2],
+            ['name' => 'شاشة سامسونج جالاكسي تاب A9', 'cost' => 65.00, 'qty' => 1],
+            ['name' => 'كاميرا آيفون 15 برو ماكس', 'cost' => 85.00, 'qty' => 2],
+            ['name' => 'كابل أزرار جانبية (آيفون)', 'cost' => 6.00, 'qty' => 10],
+            ['name' => 'طقم شاشة بكسل 7a', 'cost' => 70.00, 'qty' => 2],
+            ['name' => 'بطارية آيفون SE الجيل الثالث', 'cost' => 28.00, 'qty' => 3],
+            ['name' => 'مفصلة جالاكسي Z فليب 6', 'cost' => 150.00, 'qty' => 1],
         ];
 
         $products = [];
@@ -50,7 +50,7 @@ class SparePartSeeder extends Seeder
             'supplier_id' => $supplier->id,
             'date' => '2026-06-20',
             'type' => 'purchase',
-            'reference' => 'Spare parts initial stock',
+            'reference' => 'مخزون أولي لقطع الغيار',
         ]);
 
         foreach ($parts as $i => $part) {

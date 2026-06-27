@@ -100,6 +100,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/repairs/{id}', [RepairController::class, 'show']);
     Route::put('/repairs/{id}', [RepairController::class, 'update']);
     Route::put('/repairs/{id}/complete', [RepairController::class, 'complete']);
+    Route::put('/repairs/{id}/pay', [RepairController::class, 'pay']);
     Route::put('/repairs/{id}/cancel', [RepairController::class, 'cancel']);
     Route::delete('/repairs/{id}', [RepairController::class, 'destroy']);
 
