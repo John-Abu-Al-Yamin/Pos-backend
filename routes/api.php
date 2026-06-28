@@ -13,6 +13,7 @@ use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StockItemController;
 use App\Http\Controllers\RepairController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\InventoryAdjustmentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -117,6 +118,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/stock-items/available', [StockItemController::class, 'available']);
     Route::get('/stock-items', [StockItemController::class, 'index']);
     Route::get('/stock-items/{id}', [StockItemController::class, 'show']);
+
+    // Inventory Adjustments
+    Route::get('/inventory-adjustments/summary', [InventoryAdjustmentController::class, 'summary']);
+    Route::get('/inventory-adjustments', [InventoryAdjustmentController::class, 'index']);
+    Route::post('/inventory-adjustments', [InventoryAdjustmentController::class, 'store']);
+    Route::get('/inventory-adjustments/{id}', [InventoryAdjustmentController::class, 'show']);
+    Route::delete('/inventory-adjustments/{id}', [InventoryAdjustmentController::class, 'destroy']);
 
 
 
