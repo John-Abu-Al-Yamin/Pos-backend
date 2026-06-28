@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Expense;
 use App\Models\PurchaseHeader;
 use App\Models\Repair;
 use App\Models\Sale;
@@ -19,16 +20,22 @@ class FinancialService
 
         $repairRevenue = $this->repairRevenue($from, $to);
         $repairExpenses = $this->repairPartsCost($from, $to);
+        $totalExpenses = $this->totalExpenses($from, $to);
+
+        $grossProfit = (float) ($totalSales - $cogs - $totalRefunds);
+        $repairProfit = (float) ($repairRevenue - $repairExpenses);
 
         return [
             'totalPurchases' => (float) $totalPurchases,
             'totalSales' => (float) $totalSales,
             'totalRefunds' => (float) $totalRefunds,
             'cashFlow' => (float) ($totalSales - $totalRefunds - $totalPurchases),
-            'grossProfit' => (float) ($totalSales - $cogs - $totalRefunds),
+            'grossProfit' => $grossProfit,
+            'totalExpenses' => (float) $totalExpenses,
+            'netProfit' => (float) ($grossProfit + $repairProfit - $totalExpenses),
             'repairRevenue' => (float) $repairRevenue,
             'repairExpenses' => (float) $repairExpenses,
-            'repairProfit' => (float) ($repairRevenue - $repairExpenses),
+            'repairProfit' => $repairProfit,
         ];
     }
 
@@ -79,5 +86,12 @@ class FinancialService
             ->when($from, fn ($q) => $q->whereDate('created_at', '>=', $from))
             ->when($to, fn ($q) => $q->whereDate('created_at', '<=', $to))
             ->sum('parts_cost');
+    }
+
+    private function totalExpenses(?string $from, ?string $to): float
+    {
+        return (float) Expense::when($from, fn ($q) => $q->whereDate('expense_date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('expense_date', '<=', $to))
+            ->sum('amount');
     }
 }

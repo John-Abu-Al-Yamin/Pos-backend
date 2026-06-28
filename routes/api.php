@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseHeaderController;
 use App\Http\Controllers\PurchaseItemController;
@@ -103,6 +104,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/repairs/{id}/pay', [RepairController::class, 'pay']);
     Route::put('/repairs/{id}/cancel', [RepairController::class, 'cancel']);
     Route::delete('/repairs/{id}', [RepairController::class, 'destroy']);
+
+    // Expense routes
+    Route::get('/expenses/summary', [ExpenseController::class, 'summary']);
+    Route::get('/expenses', [ExpenseController::class, 'index']);
+    Route::post('/expenses', [ExpenseController::class, 'store']);
+    Route::get('/expenses/{id}', [ExpenseController::class, 'show']);
+    Route::put('/expenses/{id}', [ExpenseController::class, 'update']);
+    Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
 
     // stock_items
     Route::get('/stock-items/available', [StockItemController::class, 'available']);
