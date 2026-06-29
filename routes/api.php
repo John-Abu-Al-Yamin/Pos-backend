@@ -124,8 +124,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/inventory-adjustments', [InventoryAdjustmentController::class, 'index']);
     Route::post('/inventory-adjustments', [InventoryAdjustmentController::class, 'store']);
     Route::get('/inventory-adjustments/{id}', [InventoryAdjustmentController::class, 'show']);
-    Route::delete('/inventory-adjustments/{id}', [InventoryAdjustmentController::class, 'destroy']);
-
+    Route::put('/inventory-adjustments/{id}/void', [InventoryAdjustmentController::class, 'void']);
 
 
 

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\InventoryAdjustment\StoreInventoryAdjustmentRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\InventoryAdjustment;
+use App\Models\StockItem;
+use App\Services\FinancialLedgerService;
 use App\Services\InventoryAdjustmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +15,7 @@ class InventoryAdjustmentController extends Controller
 {
     public function __construct(
         private readonly InventoryAdjustmentService $adjustmentService,
+        private readonly FinancialLedgerService $ledger,
     ) {}
 
     public function index(Request $request)
@@ -98,31 +101,65 @@ class InventoryAdjustmentController extends Controller
         );
     }
 
-    public function destroy(int $id)
+    public function void(int $id)
     {
         $user = auth()->user();
 
         if (!$user || $user->role !== 'admin') {
             return ApiResponse::error(
-                message: 'ليس لديك صلاحية حذف تسويات المخزون',
+                message: 'ليس لديك صلاحية إلغاء تسويات المخزون',
                 statusCode: 403,
             );
         }
 
-        $adjustment = InventoryAdjustment::find($id);
+        $adjustment = InventoryAdjustment::whereNull('voided_at')->find($id);
 
         if (!$adjustment) {
             return ApiResponse::error(
-                message: 'تسوية المخزون غير موجودة',
+                message: 'تسوية المخزون غير موجودة أو ملغاة بالفعل',
                 statusCode: 404,
             );
         }
 
-        $adjustment->delete();
+        try {
+            $adjustment->load('product');
 
-        return ApiResponse::success(
-            message: 'تم حذف تسوية المخزون بنجاح',
-        );
+            $adjustment->update([
+                'voided_at' => now(),
+                'voided_by' => $user->id,
+            ]);
+
+            $product = $adjustment->product;
+            $difference = $adjustment->difference;
+
+            if ($difference < 0) {
+                StockItem::where('product_id', $product->id)
+                    ->whereIn('status', ['damaged', 'consumed', 'voided'])
+                    ->orderBy('id')
+                    ->take(abs($difference))
+                    ->update(['status' => 'available']);
+            } elseif ($difference > 0) {
+                StockItem::where('product_id', $product->id)
+                    ->where('status', 'available')
+                    ->whereNull('purchase_item_id')
+                    ->where('notes', 'Created via inventory adjustment')
+                    ->orderBy('id', 'desc')
+                    ->take($difference)
+                    ->delete();
+            }
+
+            $this->ledger->recordInventoryAdjustmentVoid($adjustment);
+
+            return ApiResponse::success(
+                message: 'تم إلغاء تسوية المخزون بنجاح',
+                data: $adjustment->fresh(['product', 'createdBy']),
+            );
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 422,
+            );
+        }
     }
 
     public function summary()

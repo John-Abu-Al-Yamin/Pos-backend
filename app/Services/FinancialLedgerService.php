@@ -140,6 +140,59 @@ class FinancialLedgerService
         ]);
     }
 
+    public function recordInventoryLoss(object $product, int $quantity, float $totalLoss): void
+    {
+        if (!($totalLoss > 0)) {
+            return;
+        }
+
+        FinancialLedger::create([
+            'event_type' => 'inventory_loss',
+            'amount' => $totalLoss,
+            'direction' => 'outflow',
+            'occurred_at' => now(),
+            'reference_type' => get_class($product),
+            'reference_id' => $product->id,
+            'description' => "Inventory loss: {$product->name} x{$quantity}",
+        ]);
+    }
+
+    public function recordInventoryGain(object $product, int $quantity, float $totalGain): void
+    {
+        if (!($totalGain > 0)) {
+            return;
+        }
+
+        FinancialLedger::create([
+            'event_type' => 'inventory_gain',
+            'amount' => $totalGain,
+            'direction' => 'inflow',
+            'occurred_at' => now(),
+            'reference_type' => get_class($product),
+            'reference_id' => $product->id,
+            'description' => "Inventory gain: {$product->name} x{$quantity}",
+        ]);
+    }
+
+    public function recordInventoryAdjustmentVoid(object $adjustment): void
+    {
+        $amount = (float) ($adjustment->total_loss_amount ?: $adjustment->total_gain_amount);
+
+        if (!($amount > 0)) {
+            return;
+        }
+
+        FinancialLedger::create([
+            'event_type' => 'inventory_adjustment_void',
+            'amount' => $amount,
+            'direction' => $adjustment->total_loss_amount > 0 ? 'inflow' : 'outflow',
+            'occurred_at' => now(),
+            'reference_type' => get_class($adjustment),
+            'reference_id' => $adjustment->id,
+            'description' => "Inventory adjustment #{$adjustment->id} voided — reversal",
+        ]);
+    }
+
     public function cashFlow(?string $from, ?string $to): float
     {
         return (float) FinancialLedger::when($from, fn ($q) => $q->where('occurred_at', '>=', $from))

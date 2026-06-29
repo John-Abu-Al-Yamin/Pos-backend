@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Expense;
+use App\Models\InventoryAdjustment;
 use App\Models\PurchaseHeader;
 use App\Models\Repair;
 use App\Models\ReturnItem;
@@ -30,6 +31,9 @@ class FinancialService
         $repairExpenses = $this->repairPartsCost($from, $to);
         $totalExpenses = $this->totalExpenses($from, $to);
 
+        $inventoryLoss = $this->inventoryLoss($from, $to);
+        $inventoryGain = $this->inventoryGain($from, $to);
+
         $grossProfit = (float) ($totalSales - $totalRefunds - $cogs + $cogsReversal);
         $repairProfit = (float) ($repairRevenue - $repairExpenses);
 
@@ -43,10 +47,12 @@ class FinancialService
             'cashFlow' => $this->ledger->cashFlow($from, $to),
             'grossProfit' => $grossProfit,
             'totalExpenses' => (float) $totalExpenses,
-            'netProfit' => (float) ($grossProfit + $repairProfit - $totalExpenses),
+            'netProfit' => (float) ($grossProfit + $repairProfit - $totalExpenses - $inventoryLoss + $inventoryGain),
             'repairRevenue' => (float) $repairRevenue,
             'repairExpenses' => (float) $repairExpenses,
             'repairProfit' => $repairProfit,
+            'inventoryLoss' => (float) $inventoryLoss,
+            'inventoryGain' => (float) $inventoryGain,
         ];
     }
 
@@ -112,6 +118,24 @@ class FinancialService
             ->when($from, fn ($q) => $q->whereDate('completed_at', '>=', $from))
             ->when($to, fn ($q) => $q->whereDate('completed_at', '<=', $to))
             ->sum('parts_cost');
+    }
+
+    private function inventoryLoss(?string $from, ?string $to): float
+    {
+        return (float) InventoryAdjustment::whereNull('voided_at')
+            ->where('difference', '<', 0)
+            ->when($from, fn ($q) => $q->whereDate('created_at', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('created_at', '<=', $to))
+            ->sum('total_loss_amount');
+    }
+
+    private function inventoryGain(?string $from, ?string $to): float
+    {
+        return (float) InventoryAdjustment::whereNull('voided_at')
+            ->where('difference', '>', 0)
+            ->when($from, fn ($q) => $q->whereDate('created_at', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('created_at', '<=', $to))
+            ->sum('total_gain_amount');
     }
 
     private function totalExpenses(?string $from, ?string $to): float

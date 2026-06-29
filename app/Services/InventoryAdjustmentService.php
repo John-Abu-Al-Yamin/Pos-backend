@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\DB;
 
 class InventoryAdjustmentService
 {
+    public function __construct(
+        private readonly FinancialLedgerService $ledger,
+    ) {}
+
     public function createAdjustment(array $data, int $userId): InventoryAdjustment
     {
         return DB::transaction(function () use ($data, $userId) {
@@ -21,6 +25,10 @@ class InventoryAdjustmentService
 
             $quantityAfter = (int) $data['quantity_after'];
             $difference = $quantityAfter - $quantityBefore;
+
+            $totalLossAmount = 0;
+            $totalGainAmount = 0;
+            $unitCostSnapshot = 0;
 
             if ($difference < 0) {
                 $itemsToAdjust = abs($difference);
@@ -43,14 +51,31 @@ class InventoryAdjustmentService
 
                 $ids = $availableItems->pluck('id')->toArray();
                 StockItem::whereIn('id', $ids)->update(['status' => $newStatus]);
+
+                $totalLossAmount = $availableItems->sum(fn ($item) => (float) $item->cost_price);
+                $unitCostSnapshot = $itemsToAdjust > 0
+                    ? round($totalLossAmount / $itemsToAdjust, 2)
+                    : 0;
+
+                $this->ledger->recordInventoryLoss(
+                    $product,
+                    $itemsToAdjust,
+                    $totalLossAmount,
+                );
             } elseif ($difference > 0) {
+                $unitCost = (float) ($data['unit_cost'] ?? 0);
+                if (!($unitCost > 0)) {
+                    throw new \RuntimeException('تكلفة الوحدة يجب أن تكون أكبر من 0 عند زيادة المخزون.');
+                }
+
+                $unitCostSnapshot = $unitCost;
                 $newStockItems = [];
                 for ($i = 0; $i < $difference; $i++) {
                     $newStockItems[] = [
                         'product_id' => $product->id,
                         'purchase_item_id' => null,
                         'serial_number' => null,
-                        'cost_price' => 0,
+                        'cost_price' => $unitCost,
                         'condition' => 'fair',
                         'status' => 'available',
                         'notes' => 'Created via inventory adjustment',
@@ -59,6 +84,14 @@ class InventoryAdjustmentService
                     ];
                 }
                 StockItem::insert($newStockItems);
+
+                $totalGainAmount = $unitCost * $difference;
+
+                $this->ledger->recordInventoryGain(
+                    $product,
+                    $difference,
+                    $totalGainAmount,
+                );
             }
 
             $adjustment = InventoryAdjustment::create([
@@ -66,6 +99,9 @@ class InventoryAdjustmentService
                 'quantity_before' => $quantityBefore,
                 'quantity_after' => $quantityAfter,
                 'difference' => $difference,
+                'total_loss_amount' => $totalLossAmount,
+                'total_gain_amount' => $totalGainAmount,
+                'unit_cost_snapshot' => $unitCostSnapshot,
                 'reason' => $data['reason'],
                 'notes' => $data['notes'] ?? null,
                 'created_by' => $userId,
