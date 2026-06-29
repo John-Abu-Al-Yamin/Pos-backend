@@ -12,7 +12,18 @@ class SaleItem extends Model
         'quantity',
         'unit_price',
         'line_total',
+        'total_cost',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'quantity' => 'integer',
+            'unit_price' => 'decimal:2',
+            'line_total' => 'decimal:2',
+            'total_cost' => 'decimal:2',
+        ];
+    }
 
     public function sale()
     {

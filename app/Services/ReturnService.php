@@ -47,6 +47,7 @@ class ReturnService
             ]);
 
             $totalRefund = 0;
+            $totalCogsReversal = 0;
 
             foreach ($data['items'] as $itemData) {
                 $saleItem = SaleItem::lockForUpdate()->findOrFail($itemData['sale_item_id']);
@@ -70,6 +71,8 @@ class ReturnService
                         throw new \RuntimeException("الجهاز #{$stockItem->id} حالته {$stockItem->status} وليس مباعًا");
                     }
 
+                    $unitCost = (float) $stockItem->cost_price;
+
                     ReturnItem::create([
                         'return_id' => $return->id,
                         'sale_item_id' => $saleItem->id,
@@ -77,11 +80,16 @@ class ReturnService
                         'product_id' => $product->id,
                         'quantity' => 1,
                         'refund_amount' => $refundAmount,
+                        'unit_cost' => $unitCost,
+                        'total_cost' => $unitCost,
+                        'unit_price' => (float) $saleItem->unit_price,
                         'condition_after_inspection' => $conditionAfter,
                         'restock' => $restock,
                         'reason' => $itemData['reason'] ?? null,
                         'notes' => $itemData['notes'] ?? null,
                     ]);
+
+                    $totalCogsReversal += $unitCost;
 
                     if ($restock) {
                         $updateData = ['status' => 'available'];
@@ -96,19 +104,21 @@ class ReturnService
                         ]);
                     }
                 } else {
-                    $availableStockIds = $saleItem->stockItems()
-                        ->wherePivot('sale_item_id', $saleItem->id)
-                        ->where('status', 'sold')
+                    $availableStock = $saleItem->stockItems()
+                        ->where('stock_items.status', 'sold')
                         ->orderBy('stock_items.id')
                         ->take($quantity)
                         ->lockForUpdate()
-                        ->pluck('stock_items.id');
+                        ->get();
 
-                    if ($availableStockIds->count() < $quantity) {
+                    if ($availableStock->count() < $quantity) {
                         throw new \RuntimeException(
-                            "الكمية المتاحة للإرجاع من {$product->name} غير كافية. المطلوب: {$quantity}, المتاح: {$availableStockIds->count()}"
+                            "الكمية المتاحة للإرجاع من {$product->name} غير كافية. المطلوب: {$quantity}, المتاح: {$availableStock->count()}"
                         );
                     }
+
+                    $returnedCost = (float) $availableStock->sum('cost_price');
+                    $ids = $availableStock->pluck('id')->toArray();
 
                     ReturnItem::create([
                         'return_id' => $return->id,
@@ -117,13 +127,18 @@ class ReturnService
                         'product_id' => $product->id,
                         'quantity' => $quantity,
                         'refund_amount' => $refundAmount,
+                        'unit_cost' => $quantity > 0 ? round($returnedCost / $quantity, 2) : 0,
+                        'total_cost' => $returnedCost,
+                        'unit_price' => (float) $saleItem->unit_price,
                         'condition_after_inspection' => $conditionAfter,
                         'restock' => $restock,
                         'reason' => $itemData['reason'] ?? null,
                         'notes' => $itemData['notes'] ?? null,
                     ]);
 
-                    StockItem::whereIn('id', $availableStockIds)
+                    $totalCogsReversal += $returnedCost;
+
+                    StockItem::whereIn('id', $ids)
                         ->update(['status' => $restock ? 'available' : 'damaged']);
                 }
             }

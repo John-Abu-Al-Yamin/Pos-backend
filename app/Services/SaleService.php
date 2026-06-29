@@ -55,6 +55,7 @@ class SaleService
 
                     $stockItem->update(['status' => 'sold']);
                     $saleItem->stockItems()->attach($stockItem->id);
+                    $saleItem->updateQuietly(['total_cost' => (float) $stockItem->cost_price]);
                 } else {
                     $availableStock = StockItem::where('product_id', $product->id)
                         ->where('status', 'available')
@@ -72,6 +73,8 @@ class SaleService
                     $ids = $availableStock->pluck('id')->toArray();
                     StockItem::whereIn('id', $ids)->update(['status' => 'sold']);
                     $saleItem->stockItems()->attach($ids);
+                    $totalCost = StockItem::whereIn('id', $ids)->sum('cost_price');
+                    $saleItem->updateQuietly(['total_cost' => (float) $totalCost]);
                 }
             }
 

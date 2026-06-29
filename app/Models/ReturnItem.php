@@ -13,6 +13,9 @@ class ReturnItem extends Model
         'product_id',
         'quantity',
         'refund_amount',
+        'unit_cost',
+        'total_cost',
+        'unit_price',
         'condition_after_inspection',
         'restock',
         'reason',
@@ -24,6 +27,9 @@ class ReturnItem extends Model
         return [
             'quantity' => 'integer',
             'refund_amount' => 'decimal:2',
+            'unit_cost' => 'decimal:2',
+            'total_cost' => 'decimal:2',
+            'unit_price' => 'decimal:2',
             'restock' => 'boolean',
         ];
     }

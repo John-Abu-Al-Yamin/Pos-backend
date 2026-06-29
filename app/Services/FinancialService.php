@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\Expense;
 use App\Models\PurchaseHeader;
 use App\Models\Repair;
-use App\Models\Sale;
+use App\Models\ReturnItem;
 use App\Models\Returns;
+use App\Models\Sale;
+use App\Models\SaleItem;
 use Illuminate\Support\Facades\DB;
 
 class FinancialService
@@ -21,18 +23,23 @@ class FinancialService
         $totalSales = $this->totalSales($from, $to);
         $totalRefunds = $this->totalRefunds($from, $to);
         $cogs = $this->costOfGoodsSold($from, $to);
+        $cogsReversal = $this->cogsReversal($from, $to);
+        $restockingFeeIncome = $this->restockingFeeIncome($from, $to);
 
         $repairRevenue = $this->repairRevenue($from, $to);
         $repairExpenses = $this->repairPartsCost($from, $to);
         $totalExpenses = $this->totalExpenses($from, $to);
 
-        $grossProfit = (float) ($totalSales - $cogs - $totalRefunds);
+        $grossProfit = (float) ($totalSales - $totalRefunds - $cogs + $cogsReversal);
         $repairProfit = (float) ($repairRevenue - $repairExpenses);
 
         return [
             'totalPurchases' => (float) $totalPurchases,
             'totalSales' => (float) $totalSales,
             'totalRefunds' => (float) $totalRefunds,
+            'cogs' => (float) $cogs,
+            'cogsReversal' => (float) $cogsReversal,
+            'restockingFeeIncome' => (float) $restockingFeeIncome,
             'cashFlow' => $this->ledger->cashFlow($from, $to),
             'grossProfit' => $grossProfit,
             'totalExpenses' => (float) $totalExpenses,
@@ -66,14 +73,25 @@ class FinancialService
 
     private function costOfGoodsSold(?string $from, ?string $to): float
     {
-        return (float) DB::table('stock_items')
-            ->join('sale_item_stock_item', 'stock_items.id', '=', 'sale_item_stock_item.stock_item_id')
-            ->join('sale_items', 'sale_item_stock_item.sale_item_id', '=', 'sale_items.id')
-            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-            ->where('stock_items.status', 'sold')
-            ->when($from, fn ($q) => $q->whereDate('sales.date', '>=', $from))
-            ->when($to, fn ($q) => $q->whereDate('sales.date', '<=', $to))
-            ->sum('stock_items.cost_price');
+        return (float) SaleItem::whereHas('sale', fn ($q) =>
+            $q->when($from, fn ($q) => $q->whereDate('date', '>=', $from))
+              ->when($to, fn ($q) => $q->whereDate('date', '<=', $to))
+        )->sum('total_cost');
+    }
+
+    private function cogsReversal(?string $from, ?string $to): float
+    {
+        return (float) ReturnItem::whereHas('returnHeader', fn ($q) =>
+            $q->when($from, fn ($q) => $q->whereDate('return_date', '>=', $from))
+              ->when($to, fn ($q) => $q->whereDate('return_date', '<=', $to))
+        )->sum('total_cost');
+    }
+
+    private function restockingFeeIncome(?string $from, ?string $to): float
+    {
+        return (float) Returns::when($from, fn ($q) => $q->whereDate('return_date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('return_date', '<=', $to))
+            ->sum('restocking_fee');
     }
 
     private function repairRevenue(?string $from, ?string $to): float
