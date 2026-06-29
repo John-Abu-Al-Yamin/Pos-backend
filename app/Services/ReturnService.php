@@ -150,6 +150,8 @@ class ReturnService
             ]);
 
             $this->ledger->recordRefundDisbursement($return);
+            $this->ledger->recordCogsReversal($return, $totalCogsReversal);
+            $this->ledger->recordRestockingFee($return, (float) $return->restocking_fee);
 
             $return->load([
                 'sale.customer',

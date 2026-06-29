@@ -119,10 +119,14 @@ class SaleController extends Controller
 
         $sale->load('saleItems.stockItems');
 
+        $totalCogs = 0;
+
         foreach ($sale->saleItems as $saleItem) {
             $stockItemIds = $saleItem->stockItems()
                 ->where('stock_items.status', 'sold')
                 ->pluck('stock_items.id');
+
+            $totalCogs += (float) $saleItem->total_cost;
 
             StockItem::whereIn('id', $stockItemIds)
                 ->update(['status' => 'available']);
@@ -134,7 +138,7 @@ class SaleController extends Controller
             'void_reason' => $request->input('reason', 'إلغاء يدوي'),
         ]);
 
-        $this->ledger->recordVoidReversal($sale);
+        $this->ledger->recordVoidReversal($sale, $totalCogs);
 
         return ApiResponse::success(
             message: 'تم إلغاء البيع بنجاح',

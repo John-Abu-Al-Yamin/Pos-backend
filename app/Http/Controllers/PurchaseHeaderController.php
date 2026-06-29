@@ -140,6 +140,7 @@ class PurchaseHeaderController extends Controller
                 ->delete();
         }
 
+        $this->ledger->recordPurchaseVoid($purchaseHeader);
         $purchaseHeader->delete();
 
         return ApiResponse::success(

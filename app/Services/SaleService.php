@@ -28,6 +28,8 @@ class SaleService
                 'payment_method' => $paymentMethod,
             ]);
 
+            $totalCogs = 0;
+
             foreach ($data['items'] as $itemData) {
                 $product = Product::findOrFail($itemData['product_id']);
                 $quantity = (int) ($itemData['quantity'] ?? 1);
@@ -56,6 +58,7 @@ class SaleService
                     $stockItem->update(['status' => 'sold']);
                     $saleItem->stockItems()->attach($stockItem->id);
                     $saleItem->updateQuietly(['total_cost' => (float) $stockItem->cost_price]);
+                    $totalCogs += (float) $stockItem->cost_price;
                 } else {
                     $availableStock = StockItem::where('product_id', $product->id)
                         ->where('status', 'available')
@@ -73,12 +76,15 @@ class SaleService
                     $ids = $availableStock->pluck('id')->toArray();
                     StockItem::whereIn('id', $ids)->update(['status' => 'sold']);
                     $saleItem->stockItems()->attach($ids);
-                    $totalCost = StockItem::whereIn('id', $ids)->sum('cost_price');
-                    $saleItem->updateQuietly(['total_cost' => (float) $totalCost]);
+                    $itemCogs = StockItem::whereIn('id', $ids)->sum('cost_price');
+                    $saleItem->updateQuietly(['total_cost' => (float) $itemCogs]);
+                    $totalCogs += (float) $itemCogs;
                 }
             }
 
             $sale->recalculateTotal();
+
+            $this->ledger->recordCogs($sale, $totalCogs);
 
             if ($isImmediate) {
                 $sale->payment_received_at = now();

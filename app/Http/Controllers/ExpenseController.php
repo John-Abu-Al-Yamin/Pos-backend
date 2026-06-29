@@ -113,6 +113,7 @@ class ExpenseController extends Controller
             );
         }
 
+        $this->ledger->recordExpenseVoid($expense);
         $expense->delete();
 
         return ApiResponse::success(
