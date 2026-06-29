@@ -6,15 +6,17 @@ use App\Http\Requests\Sale\StoreSaleRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\Returns;
 use App\Models\Sale;
+use App\Models\StockItem;
 use App\Models\User;
 use App\Services\SaleService;
-use Illuminate\Database\QueryException;
+use App\Services\FinancialLedgerService;
 use Illuminate\Http\Request;
 
 class SaleController extends Controller
 {
     public function __construct(
         private readonly SaleService $saleService,
+        private readonly FinancialLedgerService $ledger,
     ) {}
 
     public function store(StoreSaleRequest $request)
@@ -90,9 +92,9 @@ class SaleController extends Controller
         );
     }
 
-    public function destroy(int $id)
+    public function void(Request $request, int $id)
     {
-        $sale = Sale::with('returns')->find($id);
+        $sale = Sale::with('saleItems.stockItems')->find($id);
 
         if (!$sale) {
             return ApiResponse::error(
@@ -101,24 +103,42 @@ class SaleController extends Controller
             );
         }
 
+        if ($sale->voided_at) {
+            return ApiResponse::error(
+                message: 'البيع ملغي بالفعل',
+                statusCode: 422,
+            );
+        }
+
         if ($sale->returns()->exists()) {
             return ApiResponse::error(
-                message: 'لا يمكن حذف الفاتورة لأنها تحتوي على مرتجعات. قم بإلغاء المرتجعات أولاً.',
+                message: 'لا يمكن إلغاء الفاتورة لأنها تحتوي على مرتجعات. قم بإلغاء المرتجعات أولاً.',
                 statusCode: 422,
             );
         }
 
-        try {
-            $sale->delete();
-        } catch (QueryException $e) {
-            return ApiResponse::error(
-                message: 'لا يمكن حذف الفاتورة لأنها مرتبطة ببيانات أخرى.',
-                statusCode: 422,
-            );
+        $sale->load('saleItems.stockItems');
+
+        foreach ($sale->saleItems as $saleItem) {
+            $stockItemIds = $saleItem->stockItems()
+                ->where('stock_items.status', 'sold')
+                ->pluck('stock_items.id');
+
+            StockItem::whereIn('id', $stockItemIds)
+                ->update(['status' => 'available']);
         }
+
+        $sale->update([
+            'voided_at' => now(),
+            'voided_by' => $request->user()->id,
+            'void_reason' => $request->input('reason', 'إلغاء يدوي'),
+        ]);
+
+        $this->ledger->recordVoidReversal($sale);
 
         return ApiResponse::success(
-            message: 'تم حذف البيع بنجاح',
+            message: 'تم إلغاء البيع بنجاح',
+            data: $sale->fresh()->load(['customer', 'saleItems.product']),
         );
     }
 

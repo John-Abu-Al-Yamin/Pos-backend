@@ -59,7 +59,9 @@ class FinancialService
 
     private function totalSales(?string $from, ?string $to): float
     {
-        return Sale::when($from, fn ($q) => $q->whereDate('date', '>=', $from))
+        return Sale::notVoided()
+            ->where('payment_method', '!=', 'installment')
+            ->when($from, fn ($q) => $q->whereDate('date', '>=', $from))
             ->when($to, fn ($q) => $q->whereDate('date', '<=', $to))
             ->sum('total');
     }
@@ -74,7 +76,9 @@ class FinancialService
     private function costOfGoodsSold(?string $from, ?string $to): float
     {
         return (float) SaleItem::whereHas('sale', fn ($q) =>
-            $q->when($from, fn ($q) => $q->whereDate('date', '>=', $from))
+            $q->notVoided()
+              ->where('payment_method', '!=', 'installment')
+              ->when($from, fn ($q) => $q->whereDate('date', '>=', $from))
               ->when($to, fn ($q) => $q->whereDate('date', '<=', $to))
         )->sum('total_cost');
     }

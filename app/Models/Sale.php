@@ -15,8 +15,26 @@ class Sale extends Model
         'total',
         'payment_method',
         'payment_received_at',
+        'voided_at',
+        'voided_by',
+        'void_reason',
         'reference_code',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'date' => 'date:Y-m-d',
+            'total' => 'decimal:2',
+            'payment_received_at' => 'datetime',
+            'voided_at' => 'datetime',
+        ];
+    }
+
+    public function scopeNotVoided($query)
+    {
+        return $query->whereNull('voided_at');
+    }
 
     protected static function booted(): void
     {

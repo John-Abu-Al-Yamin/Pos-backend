@@ -110,9 +110,9 @@ function createSaleWithItems(User $user, array $itemConfigs): Sale
 // Sale Deletion Tests
 // ──────────────────────────────────────────────
 
-describe('Sale deletion with returns protection', function () {
+describe('Sale void with returns protection', function () {
 
-    it('allows deleting a sale without any returns', function () {
+    it('allows voiding a sale without any returns', function () {
         $user = createUser();
         $category = createCategory();
         $product = createSerializedProduct($category);
@@ -122,14 +122,14 @@ describe('Sale deletion with returns protection', function () {
             ['product' => $product, 'stock_items' => [$stockItem], 'unit_price' => 1000],
         ]);
 
-        $response = $this->actingAs($user)->deleteJson("/api/sales/{$sale->id}");
+        $response = $this->actingAs($user)->putJson("/api/sales/{$sale->id}/void");
 
         $response->assertStatus(200);
         $response->assertJson(['success' => true]);
-        $this->assertDatabaseMissing('sales', ['id' => $sale->id]);
+        $this->assertDatabaseHas('sales', ['id' => $sale->id, 'voided_at' => now()]);
     });
 
-    it('rejects deleting a sale that has existing returns', function () {
+    it('rejects voiding a sale that has existing returns', function () {
         $user = createUser();
         $category = createCategory();
         $product = createSerializedProduct($category);
@@ -153,20 +153,20 @@ describe('Sale deletion with returns protection', function () {
             ],
         ], $user->id);
 
-        $response = $this->actingAs($user)->deleteJson("/api/sales/{$sale->id}");
+        $response = $this->actingAs($user)->putJson("/api/sales/{$sale->id}/void");
 
         $response->assertStatus(422);
         $response->assertJson([
             'success' => false,
-            'message' => 'لا يمكن حذف الفاتورة لأنها تحتوي على مرتجعات. قم بإلغاء المرتجعات أولاً.',
+            'message' => 'لا يمكن إلغاء الفاتورة لأنها تحتوي على مرتجعات. قم بإلغاء المرتجعات أولاً.',
         ]);
         $this->assertDatabaseHas('sales', ['id' => $sale->id]);
     });
 
-    it('rejects deleting a non-existent sale', function () {
+    it('rejects voiding a non-existent sale', function () {
         $user = createUser();
 
-        $response = $this->actingAs($user)->deleteJson('/api/sales/99999');
+        $response = $this->actingAs($user)->putJson('/api/sales/99999/void');
 
         $response->assertStatus(404);
         $response->assertJson(['success' => false]);

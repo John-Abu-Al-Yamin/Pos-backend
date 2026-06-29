@@ -24,7 +24,7 @@ class SaleService
                 'customer_id' => $data['customer_id'] ?? null,
                 'user_id' => $data['user_id'] ?? null,
                 'created_by_name' => $data['created_by_name'] ?? null,
-                'date' => $data['date'] ?? now()->format('Y-m-d'),
+                'date' => now()->format('Y-m-d'),
                 'payment_method' => $paymentMethod,
             ]);
 

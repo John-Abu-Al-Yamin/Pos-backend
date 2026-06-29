@@ -110,6 +110,19 @@ class FinancialLedgerService
         ]);
     }
 
+    public function recordVoidReversal(object $sale): void
+    {
+        FinancialLedger::create([
+            'event_type' => 'sale_void',
+            'amount' => (float) $sale->total,
+            'direction' => 'outflow',
+            'occurred_at' => now(),
+            'reference_type' => get_class($sale),
+            'reference_id' => $sale->id,
+            'description' => "Sale #{$sale->reference_code} voided — payment reversed",
+        ]);
+    }
+
     public function recordDepositRefund(object $repair): void
     {
         if (!((float) $repair->deposit > 0)) {

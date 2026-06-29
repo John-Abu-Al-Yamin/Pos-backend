@@ -59,6 +59,11 @@ class ReturnService
 
                 $totalRefund += $refundAmount;
 
+                $avgUnitCost = $saleItem->quantity > 0
+                    ? (float) $saleItem->total_cost / $saleItem->quantity
+                    : 0;
+                $reversalCost = round($avgUnitCost * $quantity, 2);
+
                 if ($product->is_serialized) {
                     $stockItemId = $itemData['stock_item_id'] ?? null;
                     if (!$stockItemId) {
@@ -71,8 +76,6 @@ class ReturnService
                         throw new \RuntimeException("الجهاز #{$stockItem->id} حالته {$stockItem->status} وليس مباعًا");
                     }
 
-                    $unitCost = (float) $stockItem->cost_price;
-
                     ReturnItem::create([
                         'return_id' => $return->id,
                         'sale_item_id' => $saleItem->id,
@@ -80,8 +83,8 @@ class ReturnService
                         'product_id' => $product->id,
                         'quantity' => 1,
                         'refund_amount' => $refundAmount,
-                        'unit_cost' => $unitCost,
-                        'total_cost' => $unitCost,
+                        'unit_cost' => $reversalCost,
+                        'total_cost' => $reversalCost,
                         'unit_price' => (float) $saleItem->unit_price,
                         'condition_after_inspection' => $conditionAfter,
                         'restock' => $restock,
@@ -89,7 +92,7 @@ class ReturnService
                         'notes' => $itemData['notes'] ?? null,
                     ]);
 
-                    $totalCogsReversal += $unitCost;
+                    $totalCogsReversal += $reversalCost;
 
                     if ($restock) {
                         $updateData = ['status' => 'available'];
@@ -117,7 +120,6 @@ class ReturnService
                         );
                     }
 
-                    $returnedCost = (float) $availableStock->sum('cost_price');
                     $ids = $availableStock->pluck('id')->toArray();
 
                     ReturnItem::create([
@@ -127,8 +129,8 @@ class ReturnService
                         'product_id' => $product->id,
                         'quantity' => $quantity,
                         'refund_amount' => $refundAmount,
-                        'unit_cost' => $quantity > 0 ? round($returnedCost / $quantity, 2) : 0,
-                        'total_cost' => $returnedCost,
+                        'unit_cost' => $quantity > 0 ? round($reversalCost / $quantity, 2) : 0,
+                        'total_cost' => $reversalCost,
                         'unit_price' => (float) $saleItem->unit_price,
                         'condition_after_inspection' => $conditionAfter,
                         'restock' => $restock,
@@ -136,7 +138,7 @@ class ReturnService
                         'notes' => $itemData['notes'] ?? null,
                     ]);
 
-                    $totalCogsReversal += $returnedCost;
+                    $totalCogsReversal += $reversalCost;
 
                     StockItem::whereIn('id', $ids)
                         ->update(['status' => $restock ? 'available' : 'damaged']);
