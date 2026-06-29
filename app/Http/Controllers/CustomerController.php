@@ -36,7 +36,7 @@ class CustomerController extends Controller
 
     public function show(int $id)
     {
-        $customer = Customer::with('sales')->find($id);
+        $customer = Customer::find($id);
 
         if (!$customer) {
             return ApiResponse::error(
