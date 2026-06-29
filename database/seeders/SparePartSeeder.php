@@ -38,11 +38,13 @@ class SparePartSeeder extends Seeder
 
         $products = [];
         foreach ($parts as $part) {
+            $sellingPrice = round($part['cost'] * 1.8, 2);
             $products[] = Product::create([
                 'name' => $part['name'],
                 'category_id' => $category->id,
                 'product_category' => 'part',
                 'is_serialized' => false,
+                'selling_price' => $sellingPrice,
             ]);
         }
 

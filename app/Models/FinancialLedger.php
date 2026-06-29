@@ -10,6 +10,7 @@ class FinancialLedger extends Model
 
     protected $fillable = [
         'event_type',
+        'account_code',
         'amount',
         'direction',
         'occurred_at',

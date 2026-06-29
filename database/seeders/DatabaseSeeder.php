@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             // Financial & inventory seeders
             ExpenseSeeder::class,
             InventoryAdjustmentSeeder::class,
+            FinancialLedgerSeeder::class,
         ]);
     }
 }

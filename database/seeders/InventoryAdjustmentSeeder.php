@@ -82,11 +82,20 @@ class InventoryAdjustmentSeeder extends Seeder
 
             $quantityAfter = $quantityBefore - $itemsToRemove;
 
+            $avgUnitCost = $availableItems->isNotEmpty()
+                ? $availableItems->avg('cost_price')
+                : 0;
+
+            $totalLoss = round($itemsToRemove * $avgUnitCost, 2);
+
             InventoryAdjustment::create([
                 'product_id' => $product->id,
                 'quantity_before' => $quantityBefore,
                 'quantity_after' => $quantityAfter,
                 'difference' => -$itemsToRemove,
+                'total_loss_amount' => $totalLoss,
+                'total_gain_amount' => 0,
+                'unit_cost_snapshot' => round($avgUnitCost, 2),
                 'reason' => $data['reason'],
                 'notes' => $data['notes'],
                 'created_by' => $data['created_by'],

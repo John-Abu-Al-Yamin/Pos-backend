@@ -27,6 +27,9 @@ class RepairSeeder extends Seeder
                 'work_description' => 'استبدال الشاشة بالكامل واختبار اللمس والسطوع',
                 'estimated_cost' => 450.00,
                 'deposit' => 200.00,
+                'final_payment' => 250.00,
+                'deposit_paid_at' => '2026-06-20 10:00:00',
+                'final_paid_at' => '2026-06-21 14:30:00',
                 'status' => 'completed',
                 'payment_status' => 'paid',
                 'completed_at' => '2026-06-21 14:30:00',
@@ -43,6 +46,9 @@ class RepairSeeder extends Seeder
                 'work_description' => 'فحص البطارية واستبدالها إذا لزم الأمر',
                 'estimated_cost' => 180.00,
                 'deposit' => 50.00,
+                'final_payment' => 130.00,
+                'deposit_paid_at' => '2026-06-21 11:00:00',
+                'final_paid_at' => '2026-06-22 10:00:00',
                 'status' => 'completed',
                 'payment_status' => 'paid',
                 'completed_at' => '2026-06-22 10:00:00',
@@ -57,6 +63,8 @@ class RepairSeeder extends Seeder
                 'work_description' => 'تنظيف منفذ الشحن واستبدال كابل الشحن الداخلي',
                 'estimated_cost' => 150.00,
                 'deposit' => 75.00,
+                'final_payment' => 0,
+                'deposit_paid_at' => '2026-06-22 09:00:00',
                 'status' => 'in_progress',
                 'payment_status' => 'pending',
                 'user_id' => $admin->id,
@@ -73,6 +81,9 @@ class RepairSeeder extends Seeder
                 'work_description' => 'فحص الكاميرا واستبدال وحدة الكاميرا',
                 'estimated_cost' => 350.00,
                 'deposit' => 100.00,
+                'final_payment' => 250.00,
+                'deposit_paid_at' => '2026-06-22 14:00:00',
+                'final_paid_at' => '2026-06-23 16:45:00',
                 'status' => 'completed',
                 'payment_status' => 'paid',
                 'completed_at' => '2026-06-23 16:45:00',
@@ -89,6 +100,7 @@ class RepairSeeder extends Seeder
                 'work_description' => 'فحص السماعة الخارجية واستبدالها',
                 'estimated_cost' => 80.00,
                 'deposit' => 40.00,
+                'final_payment' => 0,
                 'status' => 'pending',
                 'payment_status' => 'pending',
                 'user_id' => $sarah->id,
@@ -104,6 +116,7 @@ class RepairSeeder extends Seeder
                 'work_description' => 'إعادة تثبيت النظام عبر DFU وحفظ البيانات',
                 'estimated_cost' => 120.00,
                 'deposit' => 0.00,
+                'final_payment' => 0,
                 'status' => 'in_progress',
                 'payment_status' => 'pending',
                 'user_id' => $admin->id,
@@ -117,6 +130,9 @@ class RepairSeeder extends Seeder
                 'work_description' => 'فحص المفصلة وتزييتها أو استبدالها',
                 'estimated_cost' => 250.00,
                 'deposit' => 250.00,
+                'final_payment' => 0.00,
+                'deposit_paid_at' => '2026-06-24 15:00:00',
+                'final_paid_at' => null,
                 'status' => 'completed',
                 'payment_status' => 'paid',
                 'completed_at' => '2026-06-25 11:20:00',
@@ -133,6 +149,7 @@ class RepairSeeder extends Seeder
                 'work_description' => 'فحص الشاشة واستبدال طقم الشاشة',
                 'estimated_cost' => 200.00,
                 'deposit' => 0.00,
+                'final_payment' => 0,
                 'status' => 'cancelled',
                 'payment_status' => 'pending',
                 'user_id' => $sarah->id,
@@ -149,6 +166,9 @@ class RepairSeeder extends Seeder
                 'work_description' => 'استبدال زر الصفحة الرئيسية',
                 'estimated_cost' => 100.00,
                 'deposit' => 100.00,
+                'final_payment' => 0.00,
+                'deposit_paid_at' => '2026-06-25 12:00:00',
+                'final_paid_at' => null,
                 'status' => 'completed',
                 'payment_status' => 'paid',
                 'completed_at' => '2026-06-26 09:15:00',
@@ -163,6 +183,7 @@ class RepairSeeder extends Seeder
                 'work_description' => 'فحص البطارية واستبدالها وتنظيف الجهاز داخلياً',
                 'estimated_cost' => 280.00,
                 'deposit' => 100.00,
+                'final_payment' => 0,
                 'status' => 'pending',
                 'payment_status' => 'pending',
                 'user_id' => $sarah->id,
@@ -200,7 +221,10 @@ class RepairSeeder extends Seeder
             }
 
             if ($totalPartsCost > 0) {
-                $repair->updateQuietly(['parts_cost' => $totalPartsCost]);
+                $repair->updateQuietly([
+                    'parts_cost' => $totalPartsCost,
+                    'final_parts_cost' => $totalPartsCost,
+                ]);
             }
         }
     }

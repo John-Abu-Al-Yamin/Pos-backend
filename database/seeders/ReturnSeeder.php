@@ -30,6 +30,7 @@ class ReturnSeeder extends Seeder
                 'return_date' => '2026-04-18',
                 'refund_method' => 'cash',
                 'refund_total' => 949.00,
+                'refund_processed_at' => '2026-04-18 17:00:00',
                 'restocking_fee' => 50.00,
                 'reason' => 'كاميرا معطلة - صور ضبابية في جميع الأوضاع',
                 'notes' => 'أبلغ العميل عن المشكلة خلال 3 أيام من الشراء. تم تأكيد عطل وحدة الكاميرا أثناء الفحص.',
@@ -43,6 +44,9 @@ class ReturnSeeder extends Seeder
             if ($saleItem) {
                 $stockItem = $saleItem->stockItems()->first();
 
+                $unitCost = (float) ($stockItem?->cost_price ?? 0);
+                $unitPrice = (float) $saleItem->unit_price;
+
                 ReturnItem::create([
                     'return_id' => $return1->id,
                     'sale_item_id' => $saleItem->id,
@@ -50,6 +54,9 @@ class ReturnSeeder extends Seeder
                     'product_id' => $saleItem->product_id,
                     'quantity' => 1,
                     'refund_amount' => 999.00,
+                    'unit_cost' => $unitCost,
+                    'total_cost' => $unitCost,
+                    'unit_price' => $unitPrice,
                     'condition_after_inspection' => 'fair',
                     'restock' => true,
                     'reason' => 'الكاميرا لا تركز - عطل في الجهاز',
@@ -77,6 +84,7 @@ class ReturnSeeder extends Seeder
                 'return_date' => '2026-04-22',
                 'refund_method' => 'card',
                 'refund_total' => 1299.00,
+                'refund_processed_at' => '2026-04-22 16:00:00',
                 'restocking_fee' => 0.00,
                 'reason' => 'العميل غير رأيه - قرر الاحتفاظ بهاتفه الحالي',
                 'notes' => 'استرداد كامل خلال فترة الإرجاع 14 يوماً. الجهاز بحالة ممتازة.',
@@ -88,6 +96,9 @@ class ReturnSeeder extends Seeder
             if ($saleItem) {
                 $stockItem = $saleItem->stockItems()->first();
 
+                $unitCost = (float) ($stockItem?->cost_price ?? 0);
+                $unitPrice = (float) $saleItem->unit_price;
+
                 ReturnItem::create([
                     'return_id' => $return2->id,
                     'sale_item_id' => $saleItem->id,
@@ -95,6 +106,9 @@ class ReturnSeeder extends Seeder
                     'product_id' => $saleItem->product_id,
                     'quantity' => 1,
                     'refund_amount' => 1299.00,
+                    'unit_cost' => $unitCost,
+                    'total_cost' => $unitCost,
+                    'unit_price' => $unitPrice,
                     'condition_after_inspection' => 'new',
                     'restock' => true,
                     'reason' => 'تغيير رأي - الجهاز لم يفتح',
@@ -122,6 +136,7 @@ class ReturnSeeder extends Seeder
                 'return_date' => '2026-05-01',
                 'refund_method' => 'bank_transfer',
                 'refund_total' => 974.00,
+                'refund_processed_at' => '2026-05-01 14:00:00',
                 'restocking_fee' => 25.00,
                 'reason' => 'وميض الشاشة بشكل متقطع بعد 3 أسابيع من الاستخدام',
                 'notes' => 'تم تأكيد مشكلة الشاشة. الجهاز خارج فترة 14 يوماً، تم فرض رسوم إعادة تخزين 25.',
@@ -135,6 +150,9 @@ class ReturnSeeder extends Seeder
             if ($saleItem) {
                 $stockItem = $saleItem->stockItems()->first();
 
+                $unitCost = (float) ($stockItem?->cost_price ?? 0);
+                $unitPrice = (float) $saleItem->unit_price;
+
                 ReturnItem::create([
                     'return_id' => $return3->id,
                     'sale_item_id' => $saleItem->id,
@@ -142,6 +160,9 @@ class ReturnSeeder extends Seeder
                     'product_id' => $saleItem->product_id,
                     'quantity' => 1,
                     'refund_amount' => 999.00,
+                    'unit_cost' => $unitCost,
+                    'total_cost' => $unitCost,
+                    'unit_price' => $unitPrice,
                     'condition_after_inspection' => 'damaged',
                     'restock' => false,
                     'reason' => 'وميض الشاشة - عطل في الجهاز',
