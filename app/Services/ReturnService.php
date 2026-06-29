@@ -19,7 +19,7 @@ class ReturnService
             $sale = Sale::lockForUpdate()->findOrFail($data['sale_id']);
 
             $previousReturns = Returns::where('sale_id', $sale->id)->lockForUpdate()->get();
-            $alreadyRefundedGross = (float) $previousReturns->sum(fn (Returns $r) => $r->refund_total + $r->restocking_fee);
+            $alreadyRefundedGross = (float) $previousReturns->sum('refund_total');
             $requestedRefundAmount = collect($data['items'])->sum(fn ($item) => (float) $item['refund_amount']);
             $remainingRefundable = (float) $sale->total - $alreadyRefundedGross;
 
@@ -124,7 +124,7 @@ class ReturnService
             }
 
             $return->update([
-                'refund_total' => $totalRefund - $return->restocking_fee,
+                'refund_total' => $totalRefund,
             ]);
 
             $return->load([

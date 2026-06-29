@@ -56,6 +56,10 @@ class RepairService
                 }
             }
 
+            if (($fillData['status'] ?? null) === 'completed') {
+                $fillData['completed_at'] = now();
+            }
+
             $repair->update($fillData);
 
             if (isset($data['parts'])) {
@@ -109,7 +113,10 @@ class RepairService
     public function completeRepair(Repair $repair, bool $markAsPaid = false): Repair
     {
         return DB::transaction(function () use ($repair, $markAsPaid) {
-            $updates = ['status' => 'completed'];
+            $updates = [
+                'status' => 'completed',
+                'completed_at' => now(),
+            ];
 
             if ($markAsPaid) {
                 $updates['payment_status'] = 'paid';
@@ -143,6 +150,7 @@ class RepairService
             $repair->update([
                 'status' => 'cancelled',
                 'parts_cost' => 0,
+                'completed_at' => null,
             ]);
 
             return $repair;

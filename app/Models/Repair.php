@@ -19,6 +19,7 @@ class Repair extends Model
         'parts_cost',
         'deposit',
         'payment_status',
+        'completed_at',
         'expected_delivery_date',
         'status',
         'user_id',

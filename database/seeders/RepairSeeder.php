@@ -29,6 +29,7 @@ class RepairSeeder extends Seeder
                 'deposit' => 200.00,
                 'status' => 'completed',
                 'payment_status' => 'paid',
+                'completed_at' => '2026-06-21 14:30:00',
                 'user_id' => $admin->id,
                 'parts' => [
                     ['product_name' => 'طقم شاشة آيفون 15 برو ماكس', 'qty' => 1],
@@ -44,6 +45,7 @@ class RepairSeeder extends Seeder
                 'deposit' => 50.00,
                 'status' => 'completed',
                 'payment_status' => 'paid',
+                'completed_at' => '2026-06-22 10:00:00',
                 'user_id' => $sarah->id,
                 'parts' => [],
             ],
@@ -73,6 +75,7 @@ class RepairSeeder extends Seeder
                 'deposit' => 100.00,
                 'status' => 'completed',
                 'payment_status' => 'paid',
+                'completed_at' => '2026-06-23 16:45:00',
                 'user_id' => $admin->id,
                 'parts' => [
                     ['product_name' => 'كاميرا آيفون 15 برو ماكس', 'qty' => 1],
@@ -116,6 +119,7 @@ class RepairSeeder extends Seeder
                 'deposit' => 250.00,
                 'status' => 'completed',
                 'payment_status' => 'paid',
+                'completed_at' => '2026-06-25 11:20:00',
                 'user_id' => $admin->id,
                 'parts' => [
                     ['product_name' => 'مفصلة جالاكسي Z فليب 6', 'qty' => 1],
@@ -147,6 +151,7 @@ class RepairSeeder extends Seeder
                 'deposit' => 100.00,
                 'status' => 'completed',
                 'payment_status' => 'paid',
+                'completed_at' => '2026-06-26 09:15:00',
                 'user_id' => $admin->id,
                 'parts' => [],
             ],
