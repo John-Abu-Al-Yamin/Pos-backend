@@ -8,11 +8,15 @@ use App\Http\Responses\ApiResponse;
 use App\Models\PurchaseHeader;
 use App\Models\StockItem;
 use App\Models\User;
+use App\Services\FinancialLedgerService;
 use Illuminate\Http\Request;
 
 class PurchaseHeaderController extends Controller
 {
-    //
+    public function __construct(
+        private readonly FinancialLedgerService $ledger,
+    ) {}
+
     public function store(StorePurchaseHeaderRequest $request)
     {
         $data = $request->validated();
@@ -21,6 +25,7 @@ class PurchaseHeaderController extends Controller
             ? User::where('role', 'admin')->value('name')
             : $user->name;
         $purchaseHeader = PurchaseHeader::create($data);
+        $this->ledger->recordPurchasePayment($purchaseHeader);
         $purchaseHeader->load(['supplier', 'purchaseItems.product', 'purchaseItems.stockItems']);
 
         return ApiResponse::success(

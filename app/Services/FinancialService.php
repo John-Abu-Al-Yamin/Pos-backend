@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\DB;
 
 class FinancialService
 {
+    public function __construct(
+        private readonly FinancialLedgerService $ledger,
+    ) {}
+
     public function getMetrics(?string $from, ?string $to): array
     {
         $totalPurchases = $this->totalPurchases($from, $to);
@@ -29,7 +33,7 @@ class FinancialService
             'totalPurchases' => (float) $totalPurchases,
             'totalSales' => (float) $totalSales,
             'totalRefunds' => (float) $totalRefunds,
-            'cashFlow' => (float) ($totalSales - $totalRefunds - $totalPurchases),
+            'cashFlow' => $this->ledger->cashFlow($from, $to),
             'grossProfit' => $grossProfit,
             'totalExpenses' => (float) $totalExpenses,
             'netProfit' => (float) ($grossProfit + $repairProfit - $totalExpenses),
@@ -75,16 +79,16 @@ class FinancialService
     private function repairRevenue(?string $from, ?string $to): float
     {
         return (float) Repair::where('status', 'completed')
-            ->when($from, fn ($q) => $q->whereDate('created_at', '>=', $from))
-            ->when($to, fn ($q) => $q->whereDate('created_at', '<=', $to))
+            ->when($from, fn ($q) => $q->whereDate('completed_at', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('completed_at', '<=', $to))
             ->sum('estimated_cost');
     }
 
     private function repairPartsCost(?string $from, ?string $to): float
     {
         return (float) Repair::where('status', 'completed')
-            ->when($from, fn ($q) => $q->whereDate('created_at', '>=', $from))
-            ->when($to, fn ($q) => $q->whereDate('created_at', '<=', $to))
+            ->when($from, fn ($q) => $q->whereDate('completed_at', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('completed_at', '<=', $to))
             ->sum('parts_cost');
     }
 

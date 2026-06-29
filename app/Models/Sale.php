@@ -14,6 +14,7 @@ class Sale extends Model
         'date',
         'total',
         'payment_method',
+        'payment_received_at',
         'reference_code',
     ];
 

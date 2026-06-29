@@ -6,10 +6,15 @@ use App\Http\Requests\Expense\StoreExpenseRequest;
 use App\Http\Requests\Expense\UpdateExpenseRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\Expense;
+use App\Services\FinancialLedgerService;
 use Illuminate\Http\Request;
 
 class ExpenseController extends Controller
 {
+    public function __construct(
+        private readonly FinancialLedgerService $ledger,
+    ) {}
+
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
@@ -49,6 +54,7 @@ class ExpenseController extends Controller
         $data = $request->validated();
         $data['created_by'] = auth()->id();
         $expense = Expense::create($data);
+        $this->ledger->recordExpensePayment($expense);
         $expense->load('createdBy');
 
         return ApiResponse::success(

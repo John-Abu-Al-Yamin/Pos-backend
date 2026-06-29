@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 class ReturnService
 {
+    public function __construct(
+        private readonly FinancialLedgerService $ledger,
+    ) {}
+
     public function createReturn(array $data, int $userId): Returns
     {
         return DB::transaction(function () use ($data, $userId) {
@@ -36,6 +40,7 @@ class ReturnService
                 'return_date' => now()->format('Y-m-d'),
                 'refund_method' => $data['refund_method'],
                 'refund_total' => 0,
+                'refund_processed_at' => now(),
                 'restocking_fee' => (float) ($data['restocking_fee'] ?? 0),
                 'reason' => $data['reason'] ?? null,
                 'notes' => $data['notes'] ?? null,
@@ -126,6 +131,8 @@ class ReturnService
             $return->update([
                 'refund_total' => $totalRefund,
             ]);
+
+            $this->ledger->recordRefundDisbursement($return);
 
             $return->load([
                 'sale.customer',

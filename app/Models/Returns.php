@@ -16,6 +16,7 @@ class Returns extends Model
         'return_date',
         'refund_method',
         'refund_total',
+        'refund_processed_at',
         'restocking_fee',
         'reason',
         'notes',
@@ -27,6 +28,7 @@ class Returns extends Model
         return [
             'return_date' => 'date:Y-m-d',
             'refund_total' => 'decimal:2',
+            'refund_processed_at' => 'datetime',
             'restocking_fee' => 'decimal:2',
         ];
     }

@@ -10,15 +10,22 @@ use Illuminate\Support\Facades\DB;
 
 class SaleService
 {
+    public function __construct(
+        private readonly FinancialLedgerService $ledger,
+    ) {}
+
     public function createSale(array $data): Sale
     {
         return DB::transaction(function () use ($data) {
+            $paymentMethod = $data['payment_method'] ?? 'cash';
+            $isImmediate = in_array($paymentMethod, ['cash', 'card', 'transfer']);
+
             $sale = Sale::create([
                 'customer_id' => $data['customer_id'] ?? null,
                 'user_id' => $data['user_id'] ?? null,
                 'created_by_name' => $data['created_by_name'] ?? null,
                 'date' => $data['date'] ?? now()->format('Y-m-d'),
-                'payment_method' => $data['payment_method'] ?? 'cash',
+                'payment_method' => $paymentMethod,
             ]);
 
             foreach ($data['items'] as $itemData) {
@@ -69,6 +76,13 @@ class SaleService
             }
 
             $sale->recalculateTotal();
+
+            if ($isImmediate) {
+                $sale->payment_received_at = now();
+                $sale->saveQuietly();
+                $this->ledger->recordSalePayment($sale);
+            }
+
             $sale->load(['customer', 'saleItems.product', 'saleItems.stockItems']);
 
             return $sale;

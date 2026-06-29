@@ -10,9 +10,16 @@ use Illuminate\Support\Facades\DB;
 
 class RepairService
 {
+    public function __construct(
+        private readonly FinancialLedgerService $ledger,
+    ) {}
+
     public function createRepair(array $data): Repair
     {
         return DB::transaction(function () use ($data) {
+            $deposit = (float) ($data['deposit'] ?? 0);
+            $depositPaidAt = $deposit > 0 ? now() : null;
+
             $repair = Repair::create([
                 'customer_id' => $data['customer_id'] ?? null,
                 'customer_name' => $data['customer_name'] ?? null,
@@ -22,11 +29,16 @@ class RepairService
                 'issue_description' => $data['issue_description'],
                 'work_description' => $data['work_description'] ?? null,
                 'estimated_cost' => $data['estimated_cost'] ?? 0,
-                'deposit' => $data['deposit'] ?? 0,
+                'deposit' => $deposit,
+                'deposit_paid_at' => $depositPaidAt,
                 'expected_delivery_date' => $data['expected_delivery_date'] ?? null,
                 'status' => 'pending',
                 'user_id' => $data['user_id'] ?? null,
             ]);
+
+            if ($depositPaidAt) {
+                $this->ledger->recordRepairDeposit($repair);
+            }
 
             if (!empty($data['parts'])) {
                 $this->attachParts($repair, $data['parts']);
@@ -113,16 +125,24 @@ class RepairService
     public function completeRepair(Repair $repair, bool $markAsPaid = false): Repair
     {
         return DB::transaction(function () use ($repair, $markAsPaid) {
+            $finalPayment = max(0, (float) $repair->estimated_cost - (float) $repair->deposit);
+
             $updates = [
                 'status' => 'completed',
                 'completed_at' => now(),
+                'final_payment' => $finalPayment,
             ];
 
             if ($markAsPaid) {
                 $updates['payment_status'] = 'paid';
+                $updates['final_paid_at'] = now();
             }
 
             $repair->update($updates);
+
+            if ($markAsPaid && $finalPayment > 0) {
+                $this->ledger->recordRepairFinalPayment($repair, $finalPayment);
+            }
 
             return $repair;
         });
@@ -131,7 +151,18 @@ class RepairService
     public function payRepair(Repair $repair): Repair
     {
         return DB::transaction(function () use ($repair) {
-            $repair->update(['payment_status' => 'paid']);
+            $finalPayment = max(0, (float) $repair->estimated_cost - (float) $repair->deposit);
+
+            $repair->update([
+                'payment_status' => 'paid',
+                'final_paid_at' => now(),
+                'final_payment' => $finalPayment,
+            ]);
+
+            if ($finalPayment > 0) {
+                $this->ledger->recordRepairFinalPayment($repair, $finalPayment);
+            }
+
             return $repair;
         });
     }
@@ -139,6 +170,12 @@ class RepairService
     public function cancelRepair(Repair $repair): Repair
     {
         return DB::transaction(function () use ($repair) {
+            $hasDeposit = (float) $repair->deposit > 0;
+
+            if ($hasDeposit) {
+                $this->ledger->recordDepositRefund($repair);
+            }
+
             $stockItemIds = $repair->repairParts()->pluck('stock_item_id');
 
             StockItem::whereIn('id', $stockItemIds)
@@ -151,6 +188,8 @@ class RepairService
                 'status' => 'cancelled',
                 'parts_cost' => 0,
                 'completed_at' => null,
+                'final_paid_at' => null,
+                'final_payment' => 0,
             ]);
 
             return $repair;
