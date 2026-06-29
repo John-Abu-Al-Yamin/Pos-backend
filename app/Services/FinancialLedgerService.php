@@ -140,6 +140,36 @@ class FinancialLedgerService
         ]);
     }
 
+    public function recordRepairPartsConsumption(object $repair, float $partsCost): void
+    {
+        if (!($partsCost > 0)) {
+            return;
+        }
+
+        FinancialLedger::create([
+            'event_type' => 'repair_parts_consumption',
+            'amount' => $partsCost,
+            'direction' => 'outflow',
+            'occurred_at' => $repair->completed_at ?? now(),
+            'reference_type' => get_class($repair),
+            'reference_id' => $repair->id,
+            'description' => "Repair #{$repair->reference_code} parts consumed",
+        ]);
+    }
+
+    public function recordRepairVoidReversal(object $repair): void
+    {
+        FinancialLedger::create([
+            'event_type' => 'repair_void',
+            'amount' => 0,
+            'direction' => 'outflow',
+            'occurred_at' => now(),
+            'reference_type' => get_class($repair),
+            'reference_id' => $repair->id,
+            'description' => "Repair #{$repair->reference_code} voided — all entries reversed",
+        ]);
+    }
+
     public function recordInventoryLoss(object $product, int $quantity, float $totalLoss): void
     {
         if (!($totalLoss > 0)) {

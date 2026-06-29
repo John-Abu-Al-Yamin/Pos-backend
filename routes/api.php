@@ -104,7 +104,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/repairs/{id}/complete', [RepairController::class, 'complete']);
     Route::put('/repairs/{id}/pay', [RepairController::class, 'pay']);
     Route::put('/repairs/{id}/cancel', [RepairController::class, 'cancel']);
-    Route::delete('/repairs/{id}', [RepairController::class, 'destroy']);
+    Route::put('/repairs/{id}/void', [RepairController::class, 'void']);
 
     // Expense routes
     Route::get('/expenses/summary', [ExpenseController::class, 'summary']);

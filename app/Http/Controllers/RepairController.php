@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Repair\StoreRepairRequest;
 use App\Http\Requests\Repair\UpdateRepairRequest;
+use App\Http\Requests\Repair\VoidRepairRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\Repair;
 use App\Models\StockItem;
@@ -100,13 +101,28 @@ class RepairController extends Controller
             );
         }
 
-        $data = $request->validated();
-        $repair = $this->repairService->updateRepair($repair, $data);
+        if ($repair->status === 'completed') {
+            return ApiResponse::error(
+                message: 'لا يمكن تعديل أمر الإصلاح بعد اكتماله',
+                statusCode: 422,
+            );
+        }
 
-        return ApiResponse::success(
-            message: 'تم تحديث أمر الإصلاح بنجاح',
-            data: $repair,
-        );
+        $data = $request->validated();
+
+        try {
+            $repair = $this->repairService->updateRepair($repair, $data);
+
+            return ApiResponse::success(
+                message: 'تم تحديث أمر الإصلاح بنجاح',
+                data: $repair,
+            );
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 422,
+            );
+        }
     }
 
     public function complete(Request $request, int $id)
@@ -120,6 +136,13 @@ class RepairController extends Controller
             );
         }
 
+        if ($repair->voided_at) {
+            return ApiResponse::error(
+                message: 'لا يمكن إكمال أمر إصلاح ملغي',
+                statusCode: 422,
+            );
+        }
+
         if ($repair->status === 'completed') {
             return ApiResponse::error(
                 message: 'أمر الإصلاح مكتمل بالفعل',
@@ -129,12 +152,19 @@ class RepairController extends Controller
 
         $markAsPaid = (bool) $request->input('mark_as_paid', false);
 
-        $repair = $this->repairService->completeRepair($repair, $markAsPaid);
+        try {
+            $repair = $this->repairService->completeRepair($repair, $markAsPaid);
 
-        return ApiResponse::success(
-            message: $markAsPaid ? 'تم إكمال أمر الإصلاح وتسجيل الدفع بنجاح' : 'تم إكمال أمر الإصلاح بنجاح',
-            data: $repair,
-        );
+            return ApiResponse::success(
+                message: $markAsPaid ? 'تم إكمال أمر الإصلاح وتسجيل الدفع بنجاح' : 'تم إكمال أمر الإصلاح بنجاح',
+                data: $repair,
+            );
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 422,
+            );
+        }
     }
 
     public function pay(int $id)
@@ -148,6 +178,13 @@ class RepairController extends Controller
             );
         }
 
+        if ($repair->voided_at) {
+            return ApiResponse::error(
+                message: 'لا يمكن دفع أمر إصلاح ملغي',
+                statusCode: 422,
+            );
+        }
+
         if ($repair->payment_status === 'paid') {
             return ApiResponse::error(
                 message: 'تم دفع أمر الإصلاح بالفعل',
@@ -155,12 +192,56 @@ class RepairController extends Controller
             );
         }
 
-        $repair = $this->repairService->payRepair($repair);
+        try {
+            $repair = $this->repairService->payRepair($repair);
 
-        return ApiResponse::success(
-            message: 'تم تسجيل الدفع بنجاح',
-            data: $repair,
-        );
+            return ApiResponse::success(
+                message: 'تم تسجيل الدفع بنجاح',
+                data: $repair,
+            );
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 422,
+            );
+        }
+    }
+
+    public function void(VoidRepairRequest $request, int $id)
+    {
+        $user = $request->user();
+
+        if (!$user || $user->role !== 'admin') {
+            return ApiResponse::error(
+                message: 'ليس لديك صلاحية إلغاء أوامر الإصلاح',
+                statusCode: 403,
+            );
+        }
+
+        $repair = Repair::whereNull('voided_at')->find($id);
+
+        if (!$repair) {
+            return ApiResponse::error(
+                message: 'أمر الإصلاح غير موجود أو ملغي بالفعل',
+                statusCode: 404,
+            );
+        }
+
+        $data = $request->validated();
+
+        try {
+            $repair = $this->repairService->voidRepair($repair, $user->id, $data['void_reason']);
+
+            return ApiResponse::success(
+                message: 'تم إلغاء أمر الإصلاح بنجاح',
+                data: $repair,
+            );
+        } catch (\RuntimeException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 422,
+            );
+        }
     }
 
     public function cancel(int $id)
@@ -174,6 +255,13 @@ class RepairController extends Controller
             );
         }
 
+        if ($repair->voided_at) {
+            return ApiResponse::error(
+                message: 'لا يمكن إلغاء أمر إصلاح ملغي',
+                statusCode: 422,
+            );
+        }
+
         if (in_array($repair->status, ['completed', 'cancelled'])) {
             return ApiResponse::error(
                 message: 'لا يمكن إلغاء أمر الإصلاح في هذه الحالة',
@@ -181,36 +269,18 @@ class RepairController extends Controller
             );
         }
 
-        $repair = $this->repairService->cancelRepair($repair);
+        try {
+            $repair = $this->repairService->cancelRepair($repair);
 
-        return ApiResponse::success(
-            message: 'تم إلغاء أمر الإصلاح بنجاح',
-            data: $repair,
-        );
-    }
-
-    public function destroy(int $id)
-    {
-        $repair = Repair::find($id);
-
-        if (!$repair) {
+            return ApiResponse::success(
+                message: 'تم إلغاء أمر الإصلاح بنجاح',
+                data: $repair,
+            );
+        } catch (\RuntimeException $e) {
             return ApiResponse::error(
-                message: 'أمر الإصلاح غير موجود',
-                statusCode: 404,
+                message: $e->getMessage(),
+                statusCode: 422,
             );
         }
-
-        if ($repair->repairParts()->exists()) {
-            $stockItemIds = $repair->repairParts()->pluck('stock_item_id');
-            StockItem::whereIn('id', $stockItemIds)
-                ->where('status', 'consumed')
-                ->update(['status' => 'available']);
-        }
-
-        $repair->delete();
-
-        return ApiResponse::success(
-            message: 'تم حذف أمر الإصلاح بنجاح',
-        );
     }
 }

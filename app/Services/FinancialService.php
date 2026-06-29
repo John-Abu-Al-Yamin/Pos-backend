@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Models\Expense;
+use App\Models\FinancialLedger;
 use App\Models\InventoryAdjustment;
 use App\Models\PurchaseHeader;
-use App\Models\Repair;
 use App\Models\ReturnItem;
 use App\Models\Returns;
 use App\Models\Sale;
@@ -106,18 +106,18 @@ class FinancialService
 
     private function repairRevenue(?string $from, ?string $to): float
     {
-        return (float) Repair::where('status', 'completed')
-            ->when($from, fn ($q) => $q->whereDate('completed_at', '>=', $from))
-            ->when($to, fn ($q) => $q->whereDate('completed_at', '<=', $to))
-            ->sum('estimated_cost');
+        return (float) FinancialLedger::whereIn('event_type', ['repair_deposit', 'repair_final_payment'])
+            ->when($from, fn ($q) => $q->where('occurred_at', '>=', $from))
+            ->when($to, fn ($q) => $q->where('occurred_at', '<=', $to . ' 23:59:59'))
+            ->sum('amount');
     }
 
     private function repairPartsCost(?string $from, ?string $to): float
     {
-        return (float) Repair::where('status', 'completed')
-            ->when($from, fn ($q) => $q->whereDate('completed_at', '>=', $from))
-            ->when($to, fn ($q) => $q->whereDate('completed_at', '<=', $to))
-            ->sum('parts_cost');
+        return (float) FinancialLedger::where('event_type', 'repair_parts_consumption')
+            ->when($from, fn ($q) => $q->where('occurred_at', '>=', $from))
+            ->when($to, fn ($q) => $q->where('occurred_at', '<=', $to . ' 23:59:59'))
+            ->sum('amount');
     }
 
     private function inventoryLoss(?string $from, ?string $to): float

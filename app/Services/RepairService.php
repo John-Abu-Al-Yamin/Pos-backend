@@ -52,6 +52,10 @@ class RepairService
 
     public function updateRepair(Repair $repair, array $data): Repair
     {
+        if ($repair->status === 'completed') {
+            throw new \RuntimeException('لا يمكن تعديل أمر الإصلاح بعد اكتماله. يجب إلغاء الأمر وإنشاء أمر جديد.');
+        }
+
         return DB::transaction(function () use ($repair, $data) {
             $updatable = [
                 'customer_id', 'customer_name', 'customer_phone',
@@ -72,6 +76,12 @@ class RepairService
                 $fillData['completed_at'] = now();
             }
 
+            if (array_key_exists('deposit', $data)) {
+                $newDeposit = (float) $data['deposit'];
+                $oldDeposit = (float) $repair->deposit;
+                $fillData['deposit_paid_at'] = $newDeposit > 0 ? now() : null;
+            }
+
             $repair->update($fillData);
 
             if (isset($data['parts'])) {
@@ -83,6 +93,8 @@ class RepairService
 
                 if (!empty($data['parts'])) {
                     $this->attachParts($repair, $data['parts']);
+                } else {
+                    $repair->updateQuietly(['parts_cost' => 0]);
                 }
             }
 
@@ -124,13 +136,20 @@ class RepairService
 
     public function completeRepair(Repair $repair, bool $markAsPaid = false): Repair
     {
+        if ($repair->status === 'completed') {
+            throw new \RuntimeException('أمر الإصلاح مكتمل بالفعل.');
+        }
+
         return DB::transaction(function () use ($repair, $markAsPaid) {
             $finalPayment = max(0, (float) $repair->estimated_cost - (float) $repair->deposit);
+
+            $finalPartsCost = (float) $repair->repairParts()->sum('unit_cost');
 
             $updates = [
                 'status' => 'completed',
                 'completed_at' => now(),
                 'final_payment' => $finalPayment,
+                'final_parts_cost' => $finalPartsCost,
             ];
 
             if ($markAsPaid) {
@@ -139,6 +158,8 @@ class RepairService
             }
 
             $repair->update($updates);
+
+            $this->ledger->recordRepairPartsConsumption($repair, $finalPartsCost);
 
             if ($markAsPaid && $finalPayment > 0) {
                 $this->ledger->recordRepairFinalPayment($repair, $finalPayment);
@@ -167,6 +188,37 @@ class RepairService
         });
     }
 
+    public function voidRepair(Repair $repair, int $userId, string $reason): Repair
+    {
+        if ($repair->voided_at) {
+            throw new \RuntimeException('أمر الإصلاح ملغي بالفعل.');
+        }
+
+        return DB::transaction(function () use ($repair, $userId, $reason) {
+            $stockItemIds = $repair->repairParts()->pluck('stock_item_id');
+            StockItem::whereIn('id', $stockItemIds)
+                ->where('status', 'consumed')
+                ->update(['status' => 'available']);
+            $repair->repairParts()->delete();
+
+            $repair->update([
+                'status' => 'voided',
+                'voided_at' => now(),
+                'voided_by' => $userId,
+                'void_reason' => $reason,
+                'completed_at' => null,
+                'final_paid_at' => null,
+                'final_payment' => 0,
+                'parts_cost' => 0,
+                'final_parts_cost' => null,
+            ]);
+
+            $this->ledger->recordRepairVoidReversal($repair);
+
+            return $repair;
+        });
+    }
+
     public function cancelRepair(Repair $repair): Repair
     {
         return DB::transaction(function () use ($repair) {
@@ -177,16 +229,15 @@ class RepairService
             }
 
             $stockItemIds = $repair->repairParts()->pluck('stock_item_id');
-
             StockItem::whereIn('id', $stockItemIds)
                 ->where('status', 'consumed')
                 ->update(['status' => 'available']);
-
             $repair->repairParts()->delete();
 
             $repair->update([
                 'status' => 'cancelled',
                 'parts_cost' => 0,
+                'final_parts_cost' => null,
                 'completed_at' => null,
                 'final_paid_at' => null,
                 'final_payment' => 0,

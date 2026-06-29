@@ -17,6 +17,7 @@ class Repair extends Model
         'work_description',
         'estimated_cost',
         'parts_cost',
+        'final_parts_cost',
         'deposit',
         'final_payment',
         'deposit_paid_at',
@@ -27,6 +28,9 @@ class Repair extends Model
         'status',
         'user_id',
         'reference_code',
+        'voided_at',
+        'voided_by',
+        'void_reason',
     ];
 
     protected function casts(): array
@@ -34,14 +38,21 @@ class Repair extends Model
         return [
             'estimated_cost' => 'decimal:2',
             'parts_cost' => 'decimal:2',
+            'final_parts_cost' => 'decimal:2',
             'deposit' => 'decimal:2',
             'final_payment' => 'decimal:2',
             'deposit_paid_at' => 'datetime',
             'final_paid_at' => 'datetime',
             'completed_at' => 'datetime',
+            'voided_at' => 'datetime',
             'payment_status' => 'string',
             'expected_delivery_date' => 'date:Y-m-d',
         ];
+    }
+
+    public function scopeNotVoided($query)
+    {
+        return $query->whereNull('voided_at');
     }
 
     public function isPaid(): bool
@@ -88,6 +99,11 @@ class Repair extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function voidedBy()
+    {
+        return $this->belongsTo(User::class, 'voided_by');
     }
 
     public function repairParts()
