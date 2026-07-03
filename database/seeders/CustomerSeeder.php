@@ -18,6 +18,10 @@ class CustomerSeeder extends Seeder
             ['name' => 'وليد حسن', 'phone' => '07700 900006'],
             ['name' => 'سلمى عمر', 'phone' => '07700 900007'],
             ['name' => 'دانيال يوسف', 'phone' => '07700 900008'],
+            ['name' => 'نورا سامي', 'phone' => '07700 900009'],
+            ['name' => 'كريم عبد الله', 'phone' => '07700 900010'],
+            ['name' => 'هند محمود', 'phone' => '07700 900011'],
+            ['name' => 'زياد طارق', 'phone' => '07700 900012'],
         ];
 
         foreach ($customers as $customer) {

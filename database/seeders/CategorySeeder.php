@@ -9,7 +9,16 @@ class CategorySeeder extends Seeder
 {
     public function run(): void
     {
-        $categories = ['أبل', 'سامسونج', 'جوجل', 'إكسسوارات'];
+        $categories = [
+            'موبايلات',
+            'إكسسوارات',
+            'قطع غيار',
+            'أجهزة لوحية',
+            'سماعات',
+            'شواحن',
+            'كابلات',
+            'حقائب وأغطية',
+        ];
 
         foreach ($categories as $name) {
             Category::create(['name' => $name]);

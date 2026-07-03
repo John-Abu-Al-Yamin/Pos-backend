@@ -9,20 +9,32 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin = User::create([
+        User::create([
             'name' => 'مدير',
             'email' => 'admin@pos.com',
             'password' => 'password',
+            'role' => 'admin',
         ]);
-        $admin->role = 'admin';
-        $admin->save();
 
-        $employee = User::create([
+        User::create([
             'name' => 'الموظفة سارة',
             'email' => 'sarah@pos.com',
             'password' => 'password',
+            'role' => 'employee',
         ]);
-        $employee->role = 'employee';
-        $employee->save();
+
+        User::create([
+            'name' => 'الموظف أحمد',
+            'email' => 'ahmed@pos.com',
+            'password' => 'password',
+            'role' => 'employee',
+        ]);
+
+        User::create([
+            'name' => 'الموظف خالد',
+            'email' => 'khaled@pos.com',
+            'password' => 'password',
+            'role' => 'employee',
+        ]);
     }
 }

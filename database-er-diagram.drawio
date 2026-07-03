@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-07-03T10:00:00.000Z" agent="Mozilla/5.0" version="24.7.5">
+  <diagram name="Database ER Diagram" id="er-diagram">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ==================== USERS TABLE ==================== -->
+        <mxCell id="users-header" value="users" style="swimlane;html=1;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fillColor=#4A90D9;fontColor=#FFFFFF;strokeColor=#357ABD;" vertex="1" parent="1">
+          <mxGeometry x="290" y="40" width="220" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="users-id" value="PK id : bigint unsigned" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontStyle=1;" vertex="1" parent="users-header">
+          <mxGeometry y="30" width="220" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="users-name" value="name : string" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="users-header">
+          <mxGeometry y="54" width="220" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="users-email" value="UQ email : string" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="users-header">
+          <mxGeometry y="76" width="220" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="users-password" value="password : string" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="users-header">
+          <mxGeometry y="98" width="220" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="users-role" value="role : enum(employee, admin) [default: employee]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="users-header">
+          <mxGeometry y="120" width="220" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="users-timestamps" value="created_at, updated_at : timestamp" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="users-header">
+          <mxGeometry y="142" width="220" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== BRANDS TABLE ==================== -->
+        <mxCell id="brands-header" value="brands" style="swimlane;html=1;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fillColor=#5CB85C;fontColor=#FFFFFF;strokeColor=#449D44;" vertex="1" parent="1">
+          <mxGeometry x="30" y="290" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="brands-id" value="PK id : bigint unsigned" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontStyle=1;" vertex="1" parent="brands-header">
+          <mxGeometry y="30" width="220" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="brands-name" value="name : string" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="brands-header">
+          <mxGeometry y="52" width="220" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="brands-is_active" value="is_active : boolean [default: true]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="brands-header">
+          <mxGeometry y="74" width="220" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== CATEGORIES TABLE ==================== -->
+        <mxCell id="categories-header" value="categories" style="swimlane;html=1;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fillColor=#F0AD4E;fontColor=#FFFFFF;strokeColor=#EEA236;" vertex="1" parent="1">
+          <mxGeometry x="550" y="290" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="categories-id" value="PK id : bigint unsigned" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontStyle=1;" vertex="1" parent="categories-header">
+          <mxGeometry y="30" width="220" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="categories-name" value="UQ name : string" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="categories-header">
+          <mxGeometry y="52" width="220" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="categories-timestamps" value="created_at, updated_at : timestamp" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="categories-header">
+          <mxGeometry y="74" width="220" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== PRODUCTS TABLE ==================== -->
+        <mxCell id="products-header" value="products" style="swimlane;html=1;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fillColor=#D9534F;fontColor=#FFFFFF;strokeColor=#C9302C;" vertex="1" parent="1">
+          <mxGeometry x="280" y="290" width="240" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="products-id" value="PK id : bigint unsigned" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontStyle=1;" vertex="1" parent="products-header">
+          <mxGeometry y="30" width="240" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="products-category_id" value="FK category_id : bigint unsigned → categories.id [ON DELETE CASCADE]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontColor=#F0AD4E;" vertex="1" parent="products-header">
+          <mxGeometry y="54" width="240" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="products-brand_id" value="FK brand_id : bigint unsigned → brands.id [ON DELETE CASCADE]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontColor=#5CB85C;" vertex="1" parent="products-header">
+          <mxGeometry y="76" width="240" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="products-name" value="name : string" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="products-header">
+          <mxGeometry y="98" width="240" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="products-type" value="type : enum(mobile, accessory, spare_part) [default: mobile]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="products-header">
+          <mxGeometry y="120" width="240" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="products-min_stock" value="min_stock : unsigned smallint [default: 5]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="products-header">
+          <mxGeometry y="142" width="240" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="products-timestamps" value="created_at, updated_at : timestamp" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="products-header">
+          <mxGeometry y="164" width="240" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== SUPPLIERS TABLE ==================== -->
+        <mxCell id="suppliers-header" value="suppliers" style="swimlane;html=1;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fillColor=#8E44AD;fontColor=#FFFFFF;strokeColor=#7D3C98;" vertex="1" parent="1">
+          <mxGeometry x="100" y="560" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="suppliers-id" value="PK id : bigint unsigned" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontStyle=1;" vertex="1" parent="suppliers-header">
+          <mxGeometry y="30" width="220" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="suppliers-name" value="UQ name : string" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="suppliers-header">
+          <mxGeometry y="52" width="220" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="suppliers-phone" value="UQ phone : string" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="suppliers-header">
+          <mxGeometry y="74" width="220" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== CUSTOMERS TABLE ==================== -->
+        <mxCell id="customers-header" value="customers" style="swimlane;html=1;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;rounded=1;fillColor=#5BC0DE;fontColor=#FFFFFF;strokeColor=#46B8DA;" vertex="1" parent="1">
+          <mxGeometry x="480" y="560" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-id" value="PK id : bigint unsigned" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontStyle=1;" vertex="1" parent="customers-header">
+          <mxGeometry y="30" width="220" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-name" value="name : string" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="customers-header">
+          <mxGeometry y="52" width="220" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-phone" value="UQ phone : string [nullable]" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="customers-header">
+          <mxGeometry y="74" width="220" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== RELATIONSHIPS ==================== -->
+
+        <!-- products.category_id → categories.id -->
+        <mxCell id="rel-product-category" value="" style="endArrow=ERone;startArrow=ERone;html=1;rounded=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#F0AD4E;strokeWidth=2;fontSize=11;" edge="1" parent="1" source="products-category_id" target="categories-id">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="535" y="355" />
+              <mxPoint x="535" y="331" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- products.brand_id → brands.id -->
+        <mxCell id="rel-product-brand" value="" style="endArrow=ERone;startArrow=ERone;html=1;rounded=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;strokeColor=#5CB85C;strokeWidth=2;fontSize=11;" edge="1" parent="1" source="products-brand_id" target="brands-id">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="265" y="377" />
+              <mxPoint x="265" y="331" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Relationship labels -->
+        <mxCell id="rel-label-category" value="N:1" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontColor=#F0AD4E;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="530" y="340" width="40" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-label-brand" value="N:1" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontColor=#5CB85C;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="255" y="352" width="40" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== LEGEND ==================== -->
+        <mxCell id="legend-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F9F9F9;strokeColor=#CCCCCC;dashed=0;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="780" y="40" width="240" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" value="Legend" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="870" y="48" width="60" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-pk" value="PK - Primary Key" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="78" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-fk" value="FK - Foreign Key (colored)" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontStyle=1;fontColor=#D9534F;" vertex="1" parent="1">
+          <mxGeometry x="800" y="100" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-uq" value="UQ - Unique Constraint" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="122" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-cascade" value="ON DELETE CASCADE" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontColor=#D9534F;" vertex="1" parent="1">
+          <mxGeometry x="800" y="144" width="180" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -3,61 +3,55 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Products\StoreProductRequest;
-use App\Http\Requests\Products\UpdateProductRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\Product;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
+    //
+
+
     public function store(StoreProductRequest $request)
     {
         $data = $request->validated();
-        $data['is_serialized'] = ($data['product_category'] ?? 'mobile') === 'mobile';
         $product = Product::create($data);
         return ApiResponse::success(
             message: 'تم إنشاء المنتج بنجاح',
             data: $product
-
         );
     }
+
+
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
-        $search = $request->input('search');
-        $categoryId = $request->input('category_id');
-        $isSerialized = $request->input('is_serialized');
-        $productCategory = $request->input('product_category');
 
-        $query = Product::query();
-
-        if ($search) {
-            $query->where('name', 'like', "%{$search}%");
-        }
-
-        if ($categoryId) {
-            $query->where('category_id', $categoryId);
-        }
-
-        if ($isSerialized !== null && $isSerialized !== '') {
-            $query->where('is_serialized', filter_var($isSerialized, FILTER_VALIDATE_BOOLEAN));
-        }
-
-        if ($productCategory) {
-            $query->where('product_category', $productCategory);
-        }
-
-        $products = $query->orderBy('created_at', 'desc')->paginate($perPage);
+        $products = Product::with(['category', 'brand'])
+            ->when($request->filled('search'), fn($q) =>
+                $q->where('name', 'like', '%' . $request->search . '%')
+            )
+            ->when($request->filled('category_id'), fn($q) =>
+                $q->where('category_id', $request->category_id)
+            )
+            ->when($request->filled('brand_id'), fn($q) =>
+                $q->where('brand_id', $request->brand_id)
+            )
+            ->when($request->filled('type'), fn($q) =>
+                $q->where('type', $request->type)
+            )
+            ->paginate($perPage);
 
         return ApiResponse::success(
-            message: 'تم استرجاع المنتجات بنجاح',
+            message: 'تم جلب المنتجات بنجاح',
             data: $products
         );
     }
 
+
     public function show(int $id)
     {
-        $product = Product::find($id);
+        $product = Product::with(['category', 'brand'])->find($id);
 
         if (!$product) {
             return ApiResponse::error(
@@ -72,7 +66,7 @@ class ProductController extends Controller
         );
     }
 
-    public function update(UpdateProductRequest $request, int $id)
+    public function update(StoreProductRequest $request, int $id)
     {
         $product = Product::find($id);
 
@@ -84,14 +78,11 @@ class ProductController extends Controller
         }
 
         $data = $request->validated();
-        if (isset($data['product_category'])) {
-            $data['is_serialized'] = $data['product_category'] === 'mobile';
-        }
         $product->update($data);
 
         return ApiResponse::success(
-            message: 'تم تحديث المنتج بنجاح',
-            data: $product
+            data: $product,
+            message: 'تم تحديث المنتج بنجاح'
         );
     }
 
