@@ -5,6 +5,8 @@ use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\PurchaseHeaderController;
+use App\Http\Controllers\PurchaseItemController;
 use App\Http\Controllers\SupplierController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -54,6 +56,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/products/{id}', [ProductController::class, 'show']);
     Route::put('/products/{id}', [ProductController::class, 'update']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+
+    // Purchase Header routes
+    Route::get('/purchase-headers', [PurchaseHeaderController::class, 'index']);
+    Route::post('/purchase-headers', [PurchaseHeaderController::class, 'store']);
+    Route::get('/purchase-headers/{id}', [PurchaseHeaderController::class, 'show']);
+    Route::put('/purchase-headers/{id}', [PurchaseHeaderController::class, 'update']);
+    Route::delete('/purchase-headers/{id}', [PurchaseHeaderController::class, 'destroy']);
+    Route::post('/purchase-headers/{purchase}/complete', [PurchaseHeaderController::class, 'complete']);
+    Route::post('/purchase-headers/{purchase}/cancel', [PurchaseHeaderController::class, 'cancel']);
+
+    // Purchase Item routes
+    Route::get('/purchase-items', [PurchaseItemController::class, 'index']);
+    Route::post('/purchase-items', [PurchaseItemController::class, 'store']);
+    Route::get('/purchase-items/{id}', [PurchaseItemController::class, 'show']);
+    Route::put('/purchase-items/{id}', [PurchaseItemController::class, 'update']);
+    Route::delete('/purchase-items/{id}', [PurchaseItemController::class, 'destroy']);
 
     // Admin-only routes
     Route::middleware('admin')->prefix('admin')->group(function () {
