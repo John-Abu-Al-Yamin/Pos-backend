@@ -304,7 +304,6 @@ inventory_quantities
 - id
 - product_id
 - quantity
-- average_cost
 - updated_at
 ```
 

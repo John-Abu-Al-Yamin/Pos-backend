@@ -337,7 +337,6 @@ Commit
 When the purchase is completed:
 
 - Increase `inventory_quantities.quantity`.
-- Update `average_cost`.
 - Create a positive stock movement.
 
 Example:

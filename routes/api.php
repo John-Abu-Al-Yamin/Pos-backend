@@ -4,6 +4,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\InventoryItemController;
+use App\Http\Controllers\InventoryQuantityController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseHeaderController;
 use App\Http\Controllers\PurchaseItemController;
@@ -72,6 +74,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/purchase-items/{id}', [PurchaseItemController::class, 'show']);
     Route::put('/purchase-items/{id}', [PurchaseItemController::class, 'update']);
     Route::delete('/purchase-items/{id}', [PurchaseItemController::class, 'destroy']);
+
+    // Inventory Quantities
+    Route::get('/inventory-quantities', [InventoryQuantityController::class, 'index']);
+    Route::get('/inventory-quantities/{id}', [InventoryQuantityController::class, 'show']);
+
+    // Inventory Items
+    Route::get('/inventory-items', [InventoryItemController::class, 'index']);
+    Route::get('/inventory-items/{id}', [InventoryItemController::class, 'show']);
 
     // Admin-only routes
     Route::middleware('admin')->prefix('admin')->group(function () {

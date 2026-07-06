@@ -23,8 +23,8 @@ class PurchaseItemService
         $item = $purchase->items()->create([
             'product_id' => $data['product_id'],
             'quantity'   => $data['quantity'],
-            'unit_cost'  => $data['unit_cost'],
-            'line_total' => $data['quantity'] * $data['unit_cost'],
+            'unit_price'  => $data['unit_cost'],
+            'total_price' => $data['quantity'] * $data['unit_cost'],
         ]);
 
         $this->recalculateTotal($purchase);
@@ -41,8 +41,8 @@ class PurchaseItemService
         $item->update([
             'product_id' => $data['product_id'],
             'quantity'   => $data['quantity'],
-            'unit_cost'  => $data['unit_cost'],
-            'line_total' => $data['quantity'] * $data['unit_cost'],
+            'unit_price'  => $data['unit_cost'],
+            'total_price' => $data['quantity'] * $data['unit_cost'],
         ]);
 
         $this->recalculateTotal($item->purchaseHeader);
