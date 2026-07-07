@@ -18,10 +18,17 @@ class PurchaseItemController extends Controller
 
     public function store(StorePurchaseItemRequest $request, PurchaseHeader $purchase)
     {
-        $item = $this->purchaseItemService->addItem(
-            $purchase,
-            $request->validated()
-        );
+        try {
+            $item = $this->purchaseItemService->addItem(
+                $purchase,
+                $request->validated()
+            );
+        } catch (\DomainException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 400
+            );
+        }
 
         return ApiResponse::success(
             message: 'تم إنشاء صنف الشراء بنجاح',
@@ -41,10 +48,17 @@ class PurchaseItemController extends Controller
             );
         }
 
-        $item = $this->purchaseItemService->updateItem(
-            $item,
-            $request->validated()
-        );
+        try {
+            $item = $this->purchaseItemService->updateItem(
+                $item,
+                $request->validated()
+            );
+        } catch (\DomainException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 400
+            );
+        }
 
         return ApiResponse::success(
             message: 'تم تحديث صنف الشراء بنجاح',
@@ -86,7 +100,14 @@ class PurchaseItemController extends Controller
             );
         }
 
-        $this->purchaseItemService->deleteItem($item);
+        try {
+            $this->purchaseItemService->deleteItem($item);
+        } catch (\DomainException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 400
+            );
+        }
 
         return ApiResponse::success(
             message: 'تم حذف صنف الشراء بنجاح'

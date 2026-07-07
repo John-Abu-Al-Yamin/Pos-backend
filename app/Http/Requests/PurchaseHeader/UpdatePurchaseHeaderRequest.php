@@ -26,8 +26,6 @@ class UpdatePurchaseHeaderRequest extends BaseApiRequest
         return [
             'supplier_id' => 'sometimes|exists:suppliers,id',
 
-            'status' => 'sometimes|in:draft,completed,cancelled',
-
             'notes' => 'nullable|string',
 
 
@@ -38,8 +36,6 @@ class UpdatePurchaseHeaderRequest extends BaseApiRequest
     {
         return [
             'supplier_id.exists' => 'المورد المختار غير موجود.',
-
-            'status.in' => 'حالة الفاتورة يجب أن تكون: draft أو completed أو cancelled.',
 
             'notes.string' => 'الملاحظات يجب أن تكون نص.',
 

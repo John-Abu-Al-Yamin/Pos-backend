@@ -9,7 +9,6 @@ class PurchaseHeader extends Model
     //
     protected $fillable = [
         'supplier_id',
-        'status',
         'created_by',
         'total_amount',
         'notes',

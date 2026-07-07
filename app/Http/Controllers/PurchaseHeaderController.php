@@ -37,10 +37,17 @@ class PurchaseHeaderController extends Controller
             );
         }
 
-        $purchase = $this->purchaseHeaderService->updateDraft(
-            $purchase,
-            $request->validated()
-        );
+        try {
+            $purchase = $this->purchaseHeaderService->updateDraft(
+                $purchase,
+                $request->validated()
+            );
+        } catch (\DomainException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 400
+            );
+        }
 
         return ApiResponse::success(
             message: 'تم تحديث فاتورة الشراء بنجاح',

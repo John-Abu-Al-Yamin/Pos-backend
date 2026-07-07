@@ -7,6 +7,7 @@ use App\Models\InventoryQuantity;
 use App\Models\PurchaseHeader;
 use App\Models\StockMovement;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PurchaseHeaderService
 {
@@ -21,7 +22,6 @@ class PurchaseHeaderService
     {
         return PurchaseHeader::create([
             'supplier_id' => $data['supplier_id'],
-            'status' => 'draft',
             'created_by' => auth()->id(),
             'total_amount' => 0,
             'notes' => $data['notes'] ?? null,
@@ -43,7 +43,7 @@ class PurchaseHeaderService
     public function updateDraft(PurchaseHeader $purchase, array $data): PurchaseHeader
     {
         if (!$purchase->isDraft()) {
-            throw new \Exception('لا يمكن تعديل فاتورة مكتملة أو ملغاة.');
+            throw new \DomainException('لا يمكن تعديل فاتورة مكتملة أو ملغاة.');
         }
 
         $purchase->update([
@@ -66,11 +66,11 @@ class PurchaseHeaderService
                 ->findOrFail($purchase->id);
 
             if (!$purchase->isDraft()) {
-                throw new \Exception('Only draft purchases can be completed.');
+                throw new \DomainException('Only draft purchases can be completed.');
             }
 
             if ($purchase->items->isEmpty()) {
-                throw new \Exception('Cannot complete purchase without items.');
+                throw new \DomainException('Cannot complete purchase without items.');
             }
 
             $now = now();
@@ -141,8 +141,12 @@ class PurchaseHeaderService
         });
     }
 
-    public function cancel(PurchaseHeader $purchase)
+    public function cancel(PurchaseHeader $purchase): void
     {
+        if (!$purchase->isDraft()) {
+            throw new \DomainException('Only draft purchases can be cancelled.');
+        }
+
         $purchase->update(['status' => 'cancelled', 'cancelled_at' => now()]);
     }
 

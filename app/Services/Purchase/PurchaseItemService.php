@@ -17,7 +17,7 @@ class PurchaseItemService
     public function addItem(PurchaseHeader $purchase, array $data): PurchaseItem
     {
         if (!$purchase->isDraft()) {
-            throw new \Exception('Cannot modify a completed purchase.');
+            throw new \DomainException('Cannot modify a completed purchase.');
         }
 
         $item = $purchase->items()->create([
@@ -35,7 +35,7 @@ class PurchaseItemService
     public function updateItem(PurchaseItem $item, array $data): PurchaseItem
     {
         if (!$item->purchaseHeader->isDraft()) {
-            throw new \Exception('Cannot modify a completed purchase.');
+            throw new \DomainException('Cannot modify a completed purchase.');
         }
 
         $item->update([
@@ -53,7 +53,7 @@ class PurchaseItemService
     public function deleteItem(PurchaseItem $item): void
     {
         if (!$item->purchaseHeader->isDraft()) {
-            throw new \Exception('Cannot modify a completed purchase.');
+            throw new \DomainException('Cannot modify a completed purchase.');
         }
 
         $purchase = $item->purchaseHeader;

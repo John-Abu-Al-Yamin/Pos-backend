@@ -1,7 +1,7 @@
 {
 	"info": {
 		"name": "POS System",
-		"description": "Point of Sale System API\n\n## Authentication\nMost endpoints require a Bearer token. Use the **Login** request to get a token, which is automatically stored in the `token` collection variable via the test script.",
+		"description": "Point of Sale System API\n\n## Authentication\nMost endpoints require a Bearer token. Use the **Login** request to get a token, which is automatically stored in the `token` collection variable via the test script.\n\n## Purchase Immutability Rules\n- A purchase is created in **draft** status.\n- While **draft**: header can be updated, items can be added/updated/deleted.\n- On **complete**: inventory records + stock movements are created, status becomes `completed`.\n- Once **completed**: the purchase is **immutable**. No edits, no status changes.\n- **Cancel** is only allowed for **draft** purchases.\n- All business rule violations return `HTTP 400` with a `DomainException` message.\n\n## Inventory Rules\n- `inventory_items` and `inventory_quantities` are **read-only** APIs.\n- `stock_movements` is **read-only**, created automatically by services.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -13,6 +13,16 @@
 		{
 			"key": "token",
 			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "purchase_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "item_id",
+			"value": "1",
 			"type": "string"
 		}
 	],
@@ -702,6 +712,7 @@
 		},
 		{
 			"name": "Purchase Headers",
+			"description": "Purchase order workflow:\n1. **Create** → status is `draft`\n2. **Add items** via nested `/purchase-headers/{purchase}/items`\n3. **Complete** → creates inventory records + stock movements, status becomes `completed`\n4. **Completed purchases are immutable** — no edits, no cancellation\n5. **Cancel** only works for **draft** purchases\n\n**Error responses for business rule violations (HTTP 400):**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"Only draft purchases can be completed.\",\n    \"errors\": null\n}\n```",
 			"item": [
 				{
 					"name": "List Purchase Headers",
@@ -750,7 +761,21 @@
 							"host": ["{{base_url}}"],
 							"path": ["purchase-headers"]
 						}
-					}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('purchase_id', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
 				},
 				{
 					"name": "Get Purchase Header",
@@ -763,14 +788,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/purchase-headers/1",
+							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-headers", "1"]
+							"path": ["purchase-headers", "{{purchase_id}}"]
 						}
 					}
 				},
 				{
 					"name": "Update Purchase Header",
+					"description": "**Immutability rule:** Only draft purchases can be updated.\n- The `status` field is **not allowed** in the request body.\n- Status can only be changed via `Complete` or `Cancel` endpoints.\n\n**Error response if completed/cancelled:**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"لا يمكن تعديل فاتورة مكتملة أو ملغاة.\",\n    \"errors\": null\n}\n```",
 					"request": {
 						"method": "PUT",
 						"header": [
@@ -789,14 +815,15 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/purchase-headers/1",
+							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-headers", "1"]
+							"path": ["purchase-headers", "{{purchase_id}}"]
 						}
 					}
 				},
 				{
 					"name": "Delete Purchase Header",
+					"description": "**Immutability rule:** Only draft purchases can be deleted.",
 					"request": {
 						"method": "DELETE",
 						"header": [
@@ -806,14 +833,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/purchase-headers/1",
+							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-headers", "1"]
+							"path": ["purchase-headers", "{{purchase_id}}"]
 						}
 					}
 				},
 				{
 					"name": "Complete Purchase Header",
+					"description": "**Business flow:**\n1. Validates purchase is in `draft` status\n2. Creates `inventory_items` for mobile products (one per device)\n3. Increments `inventory_quantities` for accessories/spare_parts\n4. Creates `stock_movements` for all items\n5. Sets status to `completed` and records `completed_at` timestamp\n\n**After completion:** Purchase becomes immutable.\n\n**Error if already completed or cancelled:**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"Only draft purchases can be completed.\",\n    \"errors\": null\n}\n```\n\n**Error if no items:**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"Cannot complete purchase without items.\",\n    \"errors\": null\n}\n```",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -823,14 +851,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/purchase-headers/1/complete",
+							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}/complete",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-headers", "1", "complete"]
+							"path": ["purchase-headers", "{{purchase_id}}", "complete"]
 						}
 					}
 				},
 				{
 					"name": "Cancel Purchase Header",
+					"description": "**Immutability rule:** Only draft purchases can be cancelled.\n\nIf the purchase is already completed or cancelled:\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"Only draft purchases can be cancelled.\",\n    \"errors\": null\n}\n```",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -840,9 +869,9 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/purchase-headers/1/cancel",
+							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}/cancel",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-headers", "1", "cancel"]
+							"path": ["purchase-headers", "{{purchase_id}}", "cancel"]
 						}
 					}
 				}
@@ -850,9 +879,11 @@
 		},
 		{
 			"name": "Purchase Items",
+			"description": "**Purchase items are nested under purchase headers.**\n\n**Immutability rules:**\n- Items can only be added/updated/deleted while the purchase is **draft**.\n- If the purchase is `completed` or `cancelled`, all mutation requests return `HTTP 400`.\n\n**Error response for any mutation on a non-draft purchase:**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"Cannot modify a completed purchase.\",\n    \"errors\": null\n}\n```\n\n**Typical workflow:**\n1. Create a purchase header (draft)\n2. Add items via `POST /purchase-headers/{purchase}/items`\n3. Complete the purchase\n4. The items become read-only",
 			"item": [
 				{
 					"name": "List Purchase Items",
+					"description": "Lists all items for a specific purchase header.",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -862,14 +893,21 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/purchase-items",
+							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}/items",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-items"]
+							"path": ["purchase-headers", "{{purchase_id}}", "items"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "10"
+								}
+							]
 						}
 					}
 				},
 				{
 					"name": "Create Purchase Item",
+					"description": "Adds an item to a draft purchase.\n\n**Quantity rules:**\n- For `mobile` products: quantity must be a whole number (each device gets one `inventory_items` record on complete)\n- For `accessory` / `spare_part`: quantity can be fractional",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -888,11 +926,25 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/purchase-items",
+							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}/items",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-items"]
+							"path": ["purchase-headers", "{{purchase_id}}", "items"]
 						}
-					}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('item_id', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
 				},
 				{
 					"name": "Get Purchase Item",
@@ -905,14 +957,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/purchase-items/1",
+							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}/items/{{item_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-items", "1"]
+							"path": ["purchase-headers", "{{purchase_id}}", "items", "{{item_id}}"]
 						}
 					}
 				},
 				{
 					"name": "Update Purchase Item",
+					"description": "**Immutability rule:** Only items in a draft purchase can be updated.",
 					"request": {
 						"method": "PUT",
 						"header": [
@@ -931,14 +984,15 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/purchase-items/1",
+							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}/items/{{item_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-items", "1"]
+							"path": ["purchase-headers", "{{purchase_id}}", "items", "{{item_id}}"]
 						}
 					}
 				},
 				{
 					"name": "Delete Purchase Item",
+					"description": "**Immutability rule:** Only items in a draft purchase can be deleted.",
 					"request": {
 						"method": "DELETE",
 						"header": [
@@ -948,9 +1002,138 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/purchase-items/1",
+							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}/items/{{item_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-items", "1"]
+							"path": ["purchase-headers", "{{purchase_id}}", "items", "{{item_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Inventory (Read Only)",
+			"description": "Inventory tables are **read-only** APIs.\nNo direct insert/update/delete from controllers.\nInventory changes happen automatically through business services:\n- Purchase Complete\n- Sale\n- Purchase Return\n- Sales Return\n- etc.",
+			"item": [
+				{
+					"name": "List Inventory Quantities",
+					"description": "Returns current stock quantities for quantity-based products (accessories & spare parts).\n- One row per product\n- Updated automatically on purchase/sale/return",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/inventory-quantities",
+							"host": ["{{base_url}}"],
+							"path": ["inventory-quantities"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Inventory Quantity",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/inventory-quantities/1",
+							"host": ["{{base_url}}"],
+							"path": ["inventory-quantities", "1"]
+						}
+					}
+				},
+				{
+					"name": "List Inventory Items",
+					"description": "Returns individual device records for serialized products (mobiles).\n- One row per physical device\n- Each device has a unique `internal_serial`\n- Status can be: `available`, `sold`, `returned`, `under_repair`, `damaged`",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/inventory-items",
+							"host": ["{{base_url}}"],
+							"path": ["inventory-items"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Inventory Item",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/inventory-items/1",
+							"host": ["{{base_url}}"],
+							"path": ["inventory-items", "1"]
+						}
+					}
+				},
+				{
+					"name": "List Stock Movements",
+					"description": "Returns all inventory transactions.\nMovement types: `purchase`, `sale`, `sales_return`, `purchase_return`, `repair_usage`, `damaged`, `lost`, `stock_adjustment`, `opening_stock`\n\nThis is an **audit log** — automatically created by business services. No direct writes.",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/stock-movements",
+							"host": ["{{base_url}}"],
+							"path": ["stock-movements"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Stock Movement",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/stock-movements/1",
+							"host": ["{{base_url}}"],
+							"path": ["stock-movements", "1"]
 						}
 					}
 				}
