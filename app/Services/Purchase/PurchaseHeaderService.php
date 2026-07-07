@@ -85,7 +85,7 @@ class PurchaseHeaderService
                             'internal_serial' => $this->generateInventorySerial(),
                             'item_condition' => 'new',
                             'status' => 'available',
-                            'cost_price' => $item->unit_cost,
+                            'cost_price' => $item->unit_price,
                             'battery_health' => null,
                             'screen_condition' => null,
                             'body_condition' => null,

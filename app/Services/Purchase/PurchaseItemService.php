@@ -35,7 +35,7 @@ class PurchaseItemService
     public function updateItem(PurchaseItem $item, array $data): PurchaseItem
     {
         if (!$item->purchaseHeader->isDraft()) {
-            throw new Exception('Cannot modify a completed purchase.');
+            throw new \Exception('Cannot modify a completed purchase.');
         }
 
         $item->update([
@@ -65,7 +65,7 @@ class PurchaseItemService
 
     private function recalculateTotal(PurchaseHeader $purchase): void
     {
-        $total = $purchase->items()->sum('line_total');
+        $total = $purchase->items()->sum('total_price');
 
         $purchase->update([
             'total_amount' => $total,

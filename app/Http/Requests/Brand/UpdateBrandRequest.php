@@ -39,7 +39,7 @@ class UpdateBrandRequest extends BaseApiRequest
         return [
             'name.string' => 'الاسم يجب أن يكون نصًا.',
             'name.unique' => 'هذا الاسم موجود بالفعل.',
-            'is_active.boolean' => 'حالة النشاط يجب أن تكون قيمة منطقية.',,
+            'is_active.boolean' => 'حالة النشاط يجب أن تكون قيمة منطقية.',
         ];
     }
 }

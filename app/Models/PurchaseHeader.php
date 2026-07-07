@@ -28,7 +28,7 @@ class PurchaseHeader extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function purchaseItems()
+    public function items()
     {
         return $this->hasMany(PurchaseItem::class);
     }

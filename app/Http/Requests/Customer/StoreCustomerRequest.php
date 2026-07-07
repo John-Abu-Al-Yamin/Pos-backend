@@ -15,7 +15,7 @@ class StoreCustomerRequest extends BaseApiRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'phone' => 'nullable|string|unique:customers,phone,max:20',
+            'phone' => 'nullable|string|max:20|unique:customers,phone',
           
         ];
     }
