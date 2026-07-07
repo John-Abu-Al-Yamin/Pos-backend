@@ -9,6 +9,7 @@ use App\Http\Controllers\InventoryQuantityController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseHeaderController;
 use App\Http\Controllers\PurchaseItemController;
+use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -82,6 +83,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Inventory Items
     Route::get('/inventory-items', [InventoryItemController::class, 'index']);
     Route::get('/inventory-items/{id}', [InventoryItemController::class, 'show']);
+
+    // Stock Movements
+    Route::get('/stock-movements', [StockMovementController::class, 'index']);
+    Route::get('/stock-movements/{id}', [StockMovementController::class, 'show']);
 
     // Admin-only routes
     Route::middleware('admin')->prefix('admin')->group(function () {

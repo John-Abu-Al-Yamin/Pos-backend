@@ -32,6 +32,10 @@ class PurchaseHeader extends Model
     {
         return $this->hasMany(PurchaseItem::class);
     }
+    public function stockMovements()
+    {
+        return $this->morphMany(StockMovement::class, 'reference');
+    }
 
     public function isDraft(): bool
     {

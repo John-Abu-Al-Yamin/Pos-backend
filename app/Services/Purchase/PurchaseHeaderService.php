@@ -5,6 +5,7 @@ namespace App\Services\Purchase;
 use App\Models\InventoryItem;
 use App\Models\InventoryQuantity;
 use App\Models\PurchaseHeader;
+use App\Models\StockMovement;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseHeaderService
@@ -72,7 +73,6 @@ class PurchaseHeaderService
                 throw new \Exception('Cannot complete purchase without items.');
             }
 
-            $inventoryItemsToInsert = [];
             $now = now();
 
             foreach ($purchase->items as $item) {
@@ -80,9 +80,10 @@ class PurchaseHeaderService
 
                 if ($product->type === 'mobile') {
                     for ($i = 0; $i < $item->quantity; $i++) {
-                        $inventoryItemsToInsert[] = [
+
+                        $inventoryItem = InventoryItem::create([
                             'product_id' => $product->id,
-                            'internal_serial' => $this->generateInventorySerial(),
+                            'internal_serial' => 'INV-' . strtoupper(Str::random(10)),
                             'item_condition' => 'new',
                             'status' => 'available',
                             'cost_price' => $item->unit_price,
@@ -92,9 +93,20 @@ class PurchaseHeaderService
                             'fingerprint_working' => null,
                             'face_id_working' => null,
                             'notes' => null,
-                            'created_at' => $now,
-                            'updated_at' => $now,
-                        ];
+                        ]);
+
+                        // Create stock movement for the mobile item
+                        StockMovement::create([
+                            'product_id' => $product->id,
+                            'inventory_item_id' => $inventoryItem->id,
+                            'movement_type' => 'purchase',
+                            'movement' => 'in',
+                            'quantity' => 1,
+                            'unit_cost' => $item->unit_price,
+                            'reference_type' => PurchaseHeader::class,
+                            'reference_id' => $purchase->id,
+                            'created_by' => auth()->id(),
+                        ]);
                     }
                 }
 
@@ -105,11 +117,19 @@ class PurchaseHeaderService
                     );
 
                     $inventory->increment('quantity', $item->quantity);
+                    // Create stock movement for the accessory or spare part
+                    StockMovement::create([
+                        'product_id' => $product->id,
+                        'inventory_item_id' => null,
+                        'movement_type' => 'purchase',
+                        'movement' => 'in',
+                        'quantity' => $item->quantity,
+                        'unit_cost' => $item->unit_price,
+                        'reference_type' => PurchaseHeader::class,
+                        'reference_id' => $purchase->id,
+                        'created_by' => auth()->id(),
+                    ]);
                 }
-            }
-
-            if (!empty($inventoryItemsToInsert)) {
-                InventoryItem::insert($inventoryItemsToInsert);
             }
 
             $purchase->update([
