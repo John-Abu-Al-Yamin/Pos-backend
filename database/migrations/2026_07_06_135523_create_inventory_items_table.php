@@ -15,10 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('product_id')->constrained()->restrictOnDelete();
             $table->string('internal_serial')->unique();
-            $table->enum('item_condition', [
-                'new',
-                'used',
-            ]);
+            
 
             $table->enum('status', [
                 'available',

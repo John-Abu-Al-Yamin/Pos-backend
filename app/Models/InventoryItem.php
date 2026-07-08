@@ -9,7 +9,6 @@ class InventoryItem extends Model
     protected $fillable = [
         'product_id',
         'internal_serial',
-        'item_condition',
         'status',
         'cost_price',
         'battery_health',
@@ -64,13 +63,5 @@ class InventoryItem extends Model
         return $this->status === 'under_repair';
     }
 
-    public function isUsed(): bool
-    {
-        return $this->item_condition === 'used';
-    }
-
-    public function isNew(): bool
-    {
-        return $this->item_condition === 'new';
-    }
+    
 }

@@ -10,4 +10,9 @@ class Customer extends Model
         'name',
         'phone',
     ];
+
+    public function usedDevicePurchaseHeaders()
+    {
+        return $this->hasMany(UsedDevicePurchaseHeader::class);
+    }
 }

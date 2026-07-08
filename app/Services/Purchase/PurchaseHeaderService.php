@@ -83,8 +83,7 @@ class PurchaseHeaderService
 
                         $inventoryItem = InventoryItem::create([
                             'product_id' => $product->id,
-                            'internal_serial' => 'INV-' . strtoupper(Str::random(10)),
-                            'item_condition' => 'new',
+                            'internal_serial' => $this->generateInventorySerial(),
                             'status' => 'available',
                             'cost_price' => $item->unit_price,
                             'battery_health' => null,
