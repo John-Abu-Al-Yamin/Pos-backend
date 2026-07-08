@@ -12,6 +12,7 @@ use App\Http\Controllers\PurchaseItemController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UsedDevicePurchaseHeaderController;
+use App\Http\Controllers\UsedDevicePurchaseItemController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -97,6 +98,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/used-purchase-headers/{id}', [UsedDevicePurchaseHeaderController::class, 'destroy']);
     Route::post('/used-purchase-headers/{purchase}/complete', [UsedDevicePurchaseHeaderController::class, 'complete']);
     Route::post('/used-purchase-headers/{purchase}/cancel', [UsedDevicePurchaseHeaderController::class, 'cancel']);
+
+    // Used Device Purchase Item routes (nested under purchase header)
+    Route::get('/used-purchase-headers/{purchase}/items', [UsedDevicePurchaseItemController::class, 'index']);
+    Route::post('/used-purchase-headers/{purchase}/items', [UsedDevicePurchaseItemController::class, 'store']);
+    Route::get('/used-purchase-headers/{purchase}/items/{item}', [UsedDevicePurchaseItemController::class, 'show']);
+    Route::put('/used-purchase-headers/{purchase}/items/{item}', [UsedDevicePurchaseItemController::class, 'update']);
+    Route::delete('/used-purchase-headers/{purchase}/items/{item}', [UsedDevicePurchaseItemController::class, 'destroy']);
 
     // Admin-only routes
     Route::middleware('admin')->prefix('admin')->group(function () {

@@ -24,4 +24,29 @@ class UsedDevicePurchaseHeader extends Model
     {
         return $this->belongsTo(Customer::class);
     }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function usedDevicePurchaseItems()
+    {
+        return $this->hasMany(UsedDevicePurchaseItem::class);
+    }
+
+    public function items()
+    {
+        return $this->usedDevicePurchaseItems();
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->status === 'draft';
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === 'completed';
+    }
 }
