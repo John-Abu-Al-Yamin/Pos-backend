@@ -3,8 +3,10 @@
 namespace App\Http\Requests\UsedDevicePurchaseItem;
 
 use App\Http\Requests\BaseApiRequest;
+use App\Models\Product;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreUsedDevicePurchaseItemRequest extends BaseApiRequest
 {
@@ -26,8 +28,8 @@ class StoreUsedDevicePurchaseItemRequest extends BaseApiRequest
             ],
             'quantity' => [
                 'required',
-                'numeric',
-                'gt:0',
+                'integer',
+                'min:1',
             ],
             'unit_price' => [
                 'required',
@@ -59,6 +61,28 @@ class StoreUsedDevicePurchaseItemRequest extends BaseApiRequest
         ];
     }
 
+    public function withValidator($validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $productId = $this->input('product_id');
+            if (!$productId) {
+                return;
+            }
+
+            $product = Product::find($productId);
+            if (!$product) {
+                return;
+            }
+
+            if ($product->type !== 'mobile') {
+                $validator->errors()->add(
+                    'product_id',
+                    'فقط الأجهزة المحمولة مسموح بها في شراء الأجهزة المستعملة.'
+                );
+            }
+        });
+    }
+
     public function messages(): array
     {
         return [
@@ -66,8 +90,8 @@ class StoreUsedDevicePurchaseItemRequest extends BaseApiRequest
             'product_id.integer'  => 'المنتج غير صالح.',
             'product_id.exists'   => 'المنتج غير موجود.',
             'quantity.required'   => 'الكمية مطلوبة.',
-            'quantity.numeric'    => 'الكمية يجب أن تكون رقمًا.',
-            'quantity.gt'         => 'الكمية يجب أن تكون أكبر من صفر.',
+            'quantity.integer'    => 'كمية الأجهزة المحمولة يجب أن تكون رقمًا صحيحًا.',
+            'quantity.min'        => 'الكمية يجب أن تكون 1 على الأقل.',
             'unit_price.required' => 'سعر الوحدة مطلوب.',
             'unit_price.numeric'  => 'سعر الوحدة يجب أن يكون رقمًا.',
             'unit_price.min'      => 'سعر الوحدة لا يمكن أن يكون أقل من صفر.',

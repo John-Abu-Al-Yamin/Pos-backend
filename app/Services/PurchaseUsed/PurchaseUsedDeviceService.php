@@ -77,6 +77,14 @@ class PurchaseUsedDeviceService
                 throw new \DomainException('Cannot complete purchase without items.');
             }
 
+            foreach ($purchase->items as $item) {
+                if ($item->product->type !== 'mobile') {
+                    throw new \DomainException(
+                        'Used device purchase can only contain mobile products.'
+                    );
+                }
+            }
+
             $now = now();
 
             foreach ($purchase->items as $item) {

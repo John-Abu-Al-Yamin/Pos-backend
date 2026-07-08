@@ -7,7 +7,7 @@ use App\Http\Requests\UsedDevicePurchaseItem\UpdateUsedDevicePurchaseItemRequest
 use App\Http\Responses\ApiResponse;
 use App\Models\UsedDevicePurchaseHeader;
 use App\Models\UsedDevicePurchaseItem;
-use App\Services\Purchase\UsedDevicePurchaseItemService;
+use App\Services\PurchaseUsed\UsedDevicePurchaseItemService;
 use Illuminate\Http\Request;
 
 class UsedDevicePurchaseItemController extends Controller

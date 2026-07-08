@@ -7,7 +7,6 @@ use App\Http\Requests\PurchaseItem\UpdatePurchaseItemRequest;
 use Illuminate\Http\Request;
 use App\Http\Responses\ApiResponse;
 use App\Models\PurchaseItem;
-use App\Models\PurchaseHeader;
 use App\Services\Purchase\PurchaseItemService;
 
 class PurchaseItemController extends Controller
@@ -16,11 +15,10 @@ class PurchaseItemController extends Controller
         private PurchaseItemService $purchaseItemService
     ) {}
 
-    public function store(StorePurchaseItemRequest $request, PurchaseHeader $purchase)
+    public function store(StorePurchaseItemRequest $request)
     {
         try {
             $item = $this->purchaseItemService->addItem(
-                $purchase,
                 $request->validated()
             );
         } catch (\DomainException $e) {
@@ -36,14 +34,13 @@ class PurchaseItemController extends Controller
         );
     }
 
-    public function update(
-        UpdatePurchaseItemRequest $request,
-        PurchaseHeader $purchase,
-        PurchaseItem $item
-    ) {
-        if ($item->purchase_header_id !== $purchase->id) {
+    public function update(UpdatePurchaseItemRequest $request, int $id)
+    {
+        $item = PurchaseItem::find($id);
+
+        if (!$item) {
             return ApiResponse::error(
-                message: 'صنف الشراء غير تابع لهذه الفاتورة',
+                message: 'صنف الشراء غير موجود',
                 statusCode: 404
             );
         }
@@ -66,19 +63,29 @@ class PurchaseItemController extends Controller
         );
     }
 
-    public function index(Request $request, PurchaseHeader $purchase)
+    public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
-        $items = $purchase->items()->paginate($perPage);
+
+        $query = PurchaseItem::with('product');
+
+        if ($request->filled('purchase_header_id')) {
+            $query->where('purchase_header_id', $request->input('purchase_header_id'));
+        }
+
+        $items = $query->paginate($perPage);
+
         return ApiResponse::success(
             message: 'تم جلب أصناف الشراء بنجاح',
             data: $items
         );
     }
 
-    public function show(PurchaseHeader $purchase, PurchaseItem $item)
+    public function show(int $id)
     {
-        if ($item->purchase_header_id !== $purchase->id) {
+        $item = PurchaseItem::with('product')->find($id);
+
+        if (!$item) {
             return ApiResponse::error(
                 message: 'صنف الشراء غير موجود',
                 statusCode: 404
@@ -91,11 +98,13 @@ class PurchaseItemController extends Controller
         );
     }
 
-    public function destroy(PurchaseHeader $purchase, PurchaseItem $item)
+    public function destroy(int $id)
     {
-        if ($item->purchase_header_id !== $purchase->id) {
+        $item = PurchaseItem::find($id);
+
+        if (!$item) {
             return ApiResponse::error(
-                message: 'صنف الشراء غير تابع لهذه الفاتورة',
+                message: 'صنف الشراء غير موجود',
                 statusCode: 404
             );
         }

@@ -2,22 +2,28 @@
 
 namespace App\Services\Purchase;
 
+use App\Models\Product;
 use App\Models\PurchaseHeader;
 use App\Models\PurchaseItem;
 
 class PurchaseItemService
 {
-    /**
-     * Create a new class instance.
-     */
     public function __construct()
     {
         //
     }
-    public function addItem(PurchaseHeader $purchase, array $data): PurchaseItem
+
+    public function addItem(array $data): PurchaseItem
     {
+        $purchase = PurchaseHeader::findOrFail($data['purchase_header_id']);
+
         if (!$purchase->isDraft()) {
             throw new \DomainException('Cannot modify a completed purchase.');
+        }
+
+        $product = Product::findOrFail($data['product_id']);
+        if ($product->type === 'mobile' && (float) $data['quantity'] != (int) $data['quantity']) {
+            throw new \DomainException('Mobile quantity must be a whole number.');
         }
 
         $item = $purchase->items()->create([
@@ -36,6 +42,11 @@ class PurchaseItemService
     {
         if (!$item->purchaseHeader->isDraft()) {
             throw new \DomainException('Cannot modify a completed purchase.');
+        }
+
+        $product = Product::findOrFail($data['product_id']);
+        if ($product->type === 'mobile' && (float) $data['quantity'] != (int) $data['quantity']) {
+            throw new \DomainException('Mobile quantity must be a whole number.');
         }
 
         $item->update([

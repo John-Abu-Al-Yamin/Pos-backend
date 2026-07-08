@@ -2,29 +2,31 @@
 
 namespace App\Http\Requests\PurchaseItem;
 
+use App\Models\Product;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StorePurchaseItemRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            //
+            'purchase_header_id' => [
+                'required',
+                'integer',
+                Rule::exists('purchase_headers', 'id'),
+            ],
+
             'product_id' => [
                 'required',
                 'integer',
@@ -45,9 +47,37 @@ class StorePurchaseItemRequest extends FormRequest
         ];
     }
 
+    public function withValidator($validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $productId = $this->input('product_id');
+            $quantity = $this->input('quantity');
+
+            if (!$productId || !$quantity) {
+                return;
+            }
+
+            $product = Product::find($productId);
+            if (!$product) {
+                return;
+            }
+
+            if ($product->type === 'mobile' && (float) $quantity != (int) $quantity) {
+                $validator->errors()->add(
+                    'quantity',
+                    'كمية الأجهزة المحمولة يجب أن تكون رقمًا صحيحًا.'
+                );
+            }
+        });
+    }
+
     public function messages(): array
     {
         return [
+            'purchase_header_id.required' => 'فاتورة الشراء مطلوبة.',
+            'purchase_header_id.integer'  => 'فاتورة الشراء غير صالحة.',
+            'purchase_header_id.exists'   => 'فاتورة الشراء غير موجودة.',
+
             'product_id.required' => 'المنتج مطلوب.',
             'product_id.integer'  => 'المنتج غير صالح.',
             'product_id.exists'   => 'المنتج غير موجود.',
