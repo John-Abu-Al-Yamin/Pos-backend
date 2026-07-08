@@ -9,7 +9,6 @@ use App\Models\InventoryItem;
 use App\Models\InventoryQuantity;
 use App\Models\StockMovement;
 use Illuminate\Support\Facades\DB;
-use Exception;
 
 class SalesCheckoutService
 {
@@ -31,10 +30,10 @@ class SalesCheckoutService
                         ->firstOrFail();
 
                     if ($inventoryItem->product->type !== 'mobile') {
-                        throw new Exception('Inventory item must be a mobile product.');
+                        throw new \RuntimeException('Inventory item must be a mobile product.');
                     }
 
-                    $quantity = 1;
+                    $quantity = $item['quantity'] ?? 1;
                     $unitPrice = $item['unit_price'];
                     $totalPrice = $unitPrice;
 
@@ -56,7 +55,7 @@ class SalesCheckoutService
                     $product = Product::findOrFail($item['product_id']);
 
                     if (! in_array($product->type, ['accessory', 'spare_part'])) {
-                        throw new Exception('Product must be accessory or spare part.');
+                        throw new \RuntimeException('Product must be accessory or spare part.');
                     }
 
                     $quantity = $item['quantity'];
@@ -67,8 +66,8 @@ class SalesCheckoutService
                         ->lockForUpdate()
                         ->first();
 
-                    if (! $inventoryQuantity || $inventoryQuantity->quantity < $quantity) {
-                        throw new Exception('Not enough stock for product: ' . $product->name);
+                    if (! $inventoryQuantity) {
+                        throw new \RuntimeException('Product not found in inventory: ' . $product->name);
                     }
 
                     $preparedItems[] = [
@@ -89,7 +88,7 @@ class SalesCheckoutService
             $total = $subtotal - $discount;
 
             if ($total < 0) {
-                throw new Exception('Discount cannot be greater than subtotal.');
+                throw new \RuntimeException('Discount cannot be greater than subtotal.');
             }
 
             $sale = SalesHeader::create([
@@ -118,10 +117,14 @@ class SalesCheckoutService
                         'status' => 'sold',
                     ]);
                 } else {
-                    $preparedItem['inventory_quantity']->decrement(
-                        'quantity',
-                        $preparedItem['quantity']
-                    );
+                    $updated = DB::table('inventory_quantities')
+                        ->where('id', $preparedItem['inventory_quantity']->id)
+                        ->where('quantity', '>=', $preparedItem['quantity'])
+                        ->decrement('quantity', $preparedItem['quantity']);
+
+                    if ($updated === 0) {
+                        throw new \RuntimeException('Not enough stock for product.');
+                    }
                 }
 
                 StockMovement::create([

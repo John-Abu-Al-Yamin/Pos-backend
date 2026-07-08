@@ -1,7 +1,7 @@
 {
 	"info": {
 		"name": "POS System",
-		"description": "Point of Sale System API\n\n## Authentication\nMost endpoints require a Bearer token. Use the **Login** request to get a token, which is automatically stored in the `token` collection variable via the test script.\n\n## Purchase Immutability Rules\n- A purchase is created in **draft** status.\n- While **draft**: header can be updated, items can be added/updated/deleted.\n- On **complete**: inventory records + stock movements are created, status becomes `completed`.\n- Once **completed**: the purchase is **immutable**. No edits, no status changes.\n- **Cancel** is only allowed for **draft** purchases.\n- All business rule violations return `HTTP 400` with a `DomainException` message.\n\n## Inventory Rules\n- `inventory_items` and `inventory_quantities` are **read-only** APIs.\n- `stock_movements` is **read-only**, created automatically by services.",
+		"description": "Point of Sale System API\n\n## Authentication\nMost endpoints require a Bearer token. Use the **Login** request to get a token, which is automatically stored in the `token` collection variable via the test script.\n\n## Purchase Immutability Rules\n- A purchase is created in **draft** status.\n- While **draft**: header can be updated, items can be added/updated/deleted.\n- On **complete**: inventory records + stock movements are created, status becomes `completed`.\n- Once **completed**: the purchase is **immutable**. No edits, no status changes.\n- **Cancel** is only allowed for **draft** purchases.\n- All business rule violations return `HTTP 400` with a `DomainException` message.\n\n## Used Device Purchase (Buying from Customers)\nFollows the same draft \u2192 complete \u2192 immutable lifecycle as new device purchases.\n- Only `mobile` products are allowed.\n- Items include condition tracking (screen, body, fingerprint, Face ID).\n\n## Inventory Rules\n- `inventory_items` and `inventory_quantities` are **read-only** APIs.\n- `stock_movements` is **read-only**, created automatically by services.\n\n## Sales\n- Single-screen POS workflow: search \u2192 add to cart \u2192 checkout.\n- `GET /pos/sales` searches available products (mobiles, accessories, spare parts).\n- `POST /pos/checkout` completes the entire sale in one atomic transaction.\n- Mobiles are tracked via `inventory_items` (serialized); accessories via `inventory_quantities`.\n- `sales_headers` and `sales_items` are read-only after creation.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -22,6 +22,21 @@
 		},
 		{
 			"key": "item_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "used_purchase_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "used_item_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "sale_id",
 			"value": "1",
 			"type": "string"
 		}
@@ -1008,10 +1023,309 @@
 						}
 					}
 				}
-			]
-		},
-		{
-			"name": "Inventory (Read Only)",
+        ]
+    },
+    {
+        "name": "Used Device Purchase Headers",
+        "description": "Purchase of used mobile devices from customers.\n\n**Workflow (same as new device purchases):**\n1. Create \u2192 status is `draft`\n2. Add items via `/used-purchase-headers/{purchase}/items`\n3. Complete \u2192 creates inventory records + stock movements, status becomes `completed`\n4. Completed purchases are immutable\n5. Cancel only works for draft purchases\n\n**Error responses for business rule violations (HTTP 400):**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"Only draft purchases can be completed.\",\n    \"errors\": null\n}\n```",
+        "item": [
+            {
+                "name": "List Used Purchase Headers",
+                "request": {
+                    "method": "GET",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{base_url}}/used-purchase-headers",
+                        "host": ["{{base_url}}"],
+                        "path": ["used-purchase-headers"],
+                        "query": [
+                            {
+                                "key": "per_page",
+                                "value": "10"
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                "name": "Create Used Purchase Header",
+                "request": {
+                    "method": "POST",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"purchase_number\": \"UPD-2024-001\",\n  \"customer_id\": 1,\n  \"notes\": \"Bought used iPhone from customer\"\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{base_url}}/used-purchase-headers",
+                        "host": ["{{base_url}}"],
+                        "path": ["used-purchase-headers"]
+                    }
+                },
+                "event": [
+                    {
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    var jsonData = pm.response.json();",
+                                "    pm.collectionVariables.set('used_purchase_id', jsonData.data.id);",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "Get Used Purchase Header",
+                "request": {
+                    "method": "GET",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}",
+                        "host": ["{{base_url}}"],
+                        "path": ["used-purchase-headers", "{{used_purchase_id}}"]
+                    }
+                }
+            },
+            {
+                "name": "Update Used Purchase Header",
+                "description": "**Immutability rule:** Only draft purchases can be updated.\n- The `status` field is **not allowed** in the request body.\n- Status can only be changed via `Complete` or `Cancel` endpoints.",
+                "request": {
+                    "method": "PUT",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"customer_id\": 1,\n  \"notes\": \"Updated notes\",\n  \"purchase_number\": \"UPD-2024-001\"\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}",
+                        "host": ["{{base_url}}"],
+                        "path": ["used-purchase-headers", "{{used_purchase_id}}"]
+                    }
+                }
+            },
+            {
+                "name": "Delete Used Purchase Header",
+                "description": "**Immutability rule:** Only draft purchases can be deleted.",
+                "request": {
+                    "method": "DELETE",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}",
+                        "host": ["{{base_url}}"],
+                        "path": ["used-purchase-headers", "{{used_purchase_id}}"]
+                    }
+                }
+            },
+            {
+                "name": "Complete Used Purchase Header",
+                "description": "**Business flow:**\n1. Validates purchase is in `draft` status\n2. Creates `inventory_items` records for each mobile device (one per unit of quantity)\n3. Creates `stock_movements` for all items\n4. Sets status to `completed` and records `completed_at` timestamp\n\n**After completion:** Purchase becomes immutable.",
+                "request": {
+                    "method": "POST",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/complete",
+                        "host": ["{{base_url}}"],
+                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "complete"]
+                    }
+                }
+            },
+            {
+                "name": "Cancel Used Purchase Header",
+                "description": "**Immutability rule:** Only draft purchases can be cancelled.",
+                "request": {
+                    "method": "POST",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/cancel",
+                        "host": ["{{base_url}}"],
+                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "cancel"]
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "name": "Used Device Purchase Items",
+        "description": "Purchase items are nested under used device purchase headers.\n\n**Immutability rules:**\n- Items can only be added/updated/deleted while the purchase is **draft**.\n- If the purchase is `completed` or `cancelled`, all mutation requests return `HTTP 400`.\n\n**Item validation:**\n- Only `mobile` products are allowed.\n- Includes device condition fields: screen_condition, body_condition, fingerprint_working, face_id_working.\n\n**Typical workflow:**\n1. Create a purchase header (draft)\n2. Add items via `POST /used-purchase-headers/{purchase}/items`\n3. Complete the purchase\n4. The items become read-only",
+        "item": [
+            {
+                "name": "List Used Purchase Items",
+                "request": {
+                    "method": "GET",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items",
+                        "host": ["{{base_url}}"],
+                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "items"],
+                        "query": [
+                            {
+                                "key": "per_page",
+                                "value": "10"
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                "name": "Create Used Purchase Item",
+                "description": "Adds a used mobile device item to a draft purchase.\n\n**Condition fields:**\n- `screen_condition`: e.g., \"Good\", \"Scratched\", \"Cracked\"\n- `body_condition`: e.g., \"Excellent\", \"Worn\", \"Damaged\"\n- `fingerprint_working`: boolean\n- `face_id_working`: boolean",
+                "request": {
+                    "method": "POST",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"unit_price\": 5000.00,\n  \"screen_condition\": \"Good\",\n  \"body_condition\": \"Excellent\",\n  \"fingerprint_working\": true,\n  \"face_id_working\": true,\n  \"notes\": \"Original box included\"\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items",
+                        "host": ["{{base_url}}"],
+                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "items"]
+                    }
+                },
+                "event": [
+                    {
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 200) {",
+                                "    var jsonData = pm.response.json();",
+                                "    pm.collectionVariables.set('used_item_id', jsonData.data.id);",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "Get Used Purchase Item",
+                "request": {
+                    "method": "GET",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items/{{used_item_id}}",
+                        "host": ["{{base_url}}"],
+                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "items", "{{used_item_id}}"]
+                    }
+                }
+            },
+            {
+                "name": "Update Used Purchase Item",
+                "description": "**Immutability rule:** Only items in a draft purchase can be updated.",
+                "request": {
+                    "method": "PUT",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"unit_price\": 4500.00,\n  \"screen_condition\": \"Fair\",\n  \"body_condition\": \"Good\",\n  \"fingerprint_working\": true,\n  \"face_id_working\": false,\n  \"notes\": \"Face ID not working\"\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items/{{used_item_id}}",
+                        "host": ["{{base_url}}"],
+                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "items", "{{used_item_id}}"]
+                    }
+                }
+            },
+            {
+                "name": "Delete Used Purchase Item",
+                "description": "**Immutability rule:** Only items in a draft purchase can be deleted.",
+                "request": {
+                    "method": "DELETE",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items/{{used_item_id}}",
+                        "host": ["{{base_url}}"],
+                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "items", "{{used_item_id}}"]
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "name": "Inventory (Read Only)",
 			"description": "Inventory tables are **read-only** APIs.\nNo direct insert/update/delete from controllers.\nInventory changes happen automatically through business services:\n- Purchase Complete\n- Sale\n- Purchase Return\n- Sales Return\n- etc.",
 			"item": [
 				{
@@ -1137,10 +1451,124 @@
 						}
 					}
 				}
-			]
-		},
-		{
-			"name": "Health",
+        ]
+    },
+    {
+        "name": "Sales",
+        "description": "Point-of-Sale operations.\n\n**Single-screen POS workflow:**\n1. Search products via `GET /pos/sales?query=`\n2. Frontend adds items to cart\n3. Send `POST /pos/checkout` to complete\n\n**Validation rules (Checkout):**\n- Items must contain either `product_id` (accessory/spare part) or `inventory_item_id` (mobile).\n- `quantity` is **required** for accessories/spare parts, **optional** for mobiles (defaults to 1).\n- `unit_price` is required for all items.\n- Business rule violations (e.g., insufficient stock) return `HTTP 422`.\n\n**Immutability:** Sales headers and items are read-only after creation.",
+        "item": [
+            {
+                "name": "POS Search Products",
+                "request": {
+                    "method": "GET",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{base_url}}/pos/sales?query=samsung",
+                        "host": ["{{base_url}}"],
+                        "path": ["pos", "sales"],
+                        "query": [
+                            {
+                                "key": "query",
+                                "value": "samsung",
+                                "description": "Search term for product name (optional)"
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                "name": "POS Checkout",
+                "description": "Completes the entire sale inside one atomic `DB::transaction`.\n\n**Item types:**\n- **Mobile** (`inventory_item_id`): Sets status to `sold`, creates StockMovement with qty=1.\n- **Accessory / Spare Part** (`product_id` + `quantity`): Atomically decrements `inventory_quantities` with stock guard. Throws 422 if insufficient stock.\n\n**Atomic operations:**\n1. Validate all items (stock, product type)\n2. Calculate subtotal, apply discount\n3. Create Sales Header\n4. Create Sales Items\n5. Update inventory (status=sold / quantity decrement)\n6. Create Stock Movements\n7. Return completed invoice",
+                "request": {
+                    "method": "POST",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"customer_id\": 1,\n  \"discount_amount\": 0,\n  \"notes\": \"Walk-in customer\",\n  \"items\": [\n    {\n      \"inventory_item_id\": 1,\n      \"unit_price\": 15000.00\n    },\n    {\n      \"product_id\": 2,\n      \"quantity\": 2,\n      \"unit_price\": 50.00\n    }\n  ]\n}",
+                        "options": {
+                            "raw": {
+                                "language": "json"
+                            }
+                        }
+                    },
+                    "url": {
+                        "raw": "{{base_url}}/pos/checkout",
+                        "host": ["{{base_url}}"],
+                        "path": ["pos", "checkout"]
+                    }
+                },
+                "event": [
+                    {
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    var jsonData = pm.response.json();",
+                                "    pm.collectionVariables.set('sale_id', jsonData.data.id);",
+                                "}"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "List Sales Headers",
+                "description": "Returns paginated sales headers with customer info.",
+                "request": {
+                    "method": "GET",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{base_url}}/sales-headers",
+                        "host": ["{{base_url}}"],
+                        "path": ["sales-headers"],
+                        "query": [
+                            {
+                                "key": "per_page",
+                                "value": "10",
+                                "description": "Items per page (default: 10)"
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                "name": "Get Sales Header",
+                "description": "Returns the full sale with:\n- Customer info\n- Creator info (user who processed the sale)\n- Items (product details + inventory_item details)",
+                "request": {
+                    "method": "GET",
+                    "header": [
+                        {
+                            "key": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
+                    "url": {
+                        "raw": "{{base_url}}/sales-headers/{{sale_id}}",
+                        "host": ["{{base_url}}"],
+                        "path": ["sales-headers", "{{sale_id}}"]
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "name": "Health",
 			"item": [
 				{
 					"name": "Hello",

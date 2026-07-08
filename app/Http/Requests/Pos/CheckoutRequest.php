@@ -46,7 +46,7 @@ class CheckoutRequest extends BaseApiRequest
             ],
 
             'items.*.quantity' => [
-                'nullable',
+                'required_without:items.*.inventory_item_id',
                 'numeric',
                 'min:0.01',
             ],
@@ -79,6 +79,7 @@ class CheckoutRequest extends BaseApiRequest
             'items.*.inventory_item_id.required_without' => 'لازم تختار الجهاز.',
             'items.*.inventory_item_id.exists' => 'الجهاز المختار مش موجود.',
 
+            'items.*.quantity.required_without' => 'الكمية مطلوبة للمنتجات.',
             'items.*.quantity.numeric' => 'الكمية لازم تكون رقم.',
             'items.*.quantity.min' => 'الكمية لازم تكون أكبر من صفر.',
 
