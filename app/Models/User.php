@@ -47,4 +47,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(StockMovement::class, 'created_by');
     }
+
+    public function purchaseHeaders()
+    {
+        return $this->hasMany(PurchaseHeader::class, 'created_by');
+    }
+
+    public function salesHeaders()
+    {
+        return $this->hasMany(SalesHeader::class, 'created_by');
+    }
 }

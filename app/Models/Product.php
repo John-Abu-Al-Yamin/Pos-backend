@@ -45,4 +45,9 @@ class Product extends Model
     {
         return $this->hasMany(UsedDevicePurchaseItem::class);
     }
+
+    public function salesItems()
+    {
+        return $this->hasMany(SalesItem::class);
+    }
 }

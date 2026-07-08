@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\PurchaseItem;
 
+use App\Http\Requests\BaseApiRequest;
 use App\Models\Product;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class StorePurchaseItemRequest extends FormRequest
+class StorePurchaseItemRequest extends BaseApiRequest
 {
     public function authorize(): bool
     {

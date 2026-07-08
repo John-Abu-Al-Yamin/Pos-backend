@@ -15,4 +15,9 @@ class Customer extends Model
     {
         return $this->hasMany(UsedDevicePurchaseHeader::class);
     }
+     public function salesHeaders()
+    {
+        return $this->hasMany(SalesHeader::class);
+    } 
+    
 }

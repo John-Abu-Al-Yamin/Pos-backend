@@ -6,9 +6,11 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InventoryItemController;
 use App\Http\Controllers\InventoryQuantityController;
+use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseHeaderController;
 use App\Http\Controllers\PurchaseItemController;
+use App\Http\Controllers\SalesHeaderController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UsedDevicePurchaseHeaderController;
@@ -105,6 +107,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/used-purchase-headers/{purchase}/items/{item}', [UsedDevicePurchaseItemController::class, 'show']);
     Route::put('/used-purchase-headers/{purchase}/items/{item}', [UsedDevicePurchaseItemController::class, 'update']);
     Route::delete('/used-purchase-headers/{purchase}/items/{item}', [UsedDevicePurchaseItemController::class, 'destroy']);
+
+    // Sales routes
+    Route::get('/pos/sales', [PosController::class, 'index']);
+    Route::post('/pos/checkout', [PosController::class, 'checkout']);
+     Route::get('/sales-headers', [SalesHeaderController::class, 'index']);
+    Route::get('/sales-headers/{id}', [SalesHeaderController::class, 'show']);
+
+
+
 
     // Admin-only routes
     Route::middleware('admin')->prefix('admin')->group(function () {
