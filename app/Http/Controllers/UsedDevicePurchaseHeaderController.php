@@ -110,7 +110,9 @@ class UsedDevicePurchaseHeaderController extends Controller
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
-        $purchases = UsedDevicePurchaseHeader::with(['customer', 'createdBy'])->paginate($perPage);
+        $purchases = UsedDevicePurchaseHeader::with(['customer', 'createdBy'])
+            ->withCount('usedDevicePurchaseItems')
+            ->paginate($perPage);
 
         return ApiResponse::success(
             message: 'تم جلب فواتير شراء الأجهزة المستعملة بنجاح',
@@ -120,7 +122,7 @@ class UsedDevicePurchaseHeaderController extends Controller
 
         public function show(int $id)
     {
-        $purchase = UsedDevicePurchaseHeader::with(['customer', 'createdBy'])->find($id);
+        $purchase = UsedDevicePurchaseHeader::with(['customer', 'createdBy', 'usedDevicePurchaseItems.product'])->find($id);
 
         if (!$purchase) {
             return ApiResponse::error(

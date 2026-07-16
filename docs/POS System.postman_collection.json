@@ -894,11 +894,11 @@
 		},
 		{
 			"name": "Purchase Items",
-			"description": "**Purchase items are nested under purchase headers.**\n\n**Immutability rules:**\n- Items can only be added/updated/deleted while the purchase is **draft**.\n- If the purchase is `completed` or `cancelled`, all mutation requests return `HTTP 400`.\n\n**Error response for any mutation on a non-draft purchase:**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"Cannot modify a completed purchase.\",\n    \"errors\": null\n}\n```\n\n**Typical workflow:**\n1. Create a purchase header (draft)\n2. Add items via `POST /purchase-headers/{purchase}/items`\n3. Complete the purchase\n4. The items become read-only",
+			"description": "**Purchase items are top-level resources (not nested under purchase headers).**\n\n**Immutability rules:**\n- Items can only be added/updated/deleted while the purchase is **draft**.\n- If the purchase is `completed` or `cancelled`, all mutation requests return `HTTP 400`.\n\n**Error response for any mutation on a non-draft purchase:**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"Cannot modify a completed purchase.\",\n    \"errors\": null\n}\n```\n\n**Typical workflow:**\n1. Create a purchase header (draft)\n2. Add items via `POST /purchase-items` (include `purchase_header_id` in body)\n3. Complete the purchase\n4. The items become read-only\n\n**Note:** Responses include the related `product` object eager-loaded on all read endpoints.",
 			"item": [
 				{
 					"name": "List Purchase Items",
-					"description": "Lists all items for a specific purchase header.",
+					"description": "Lists all purchase items. Filter by purchase header using `purchase_header_id` query param.\n\nResponse includes the related `product` object (eager-loaded).",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -908,13 +908,19 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}/items",
+							"raw": "{{base_url}}/purchase-items?purchase_header_id={{purchase_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-headers", "{{purchase_id}}", "items"],
+							"path": ["purchase-items"],
 							"query": [
 								{
+									"key": "purchase_header_id",
+									"value": "{{purchase_id}}",
+									"description": "Filter by purchase header ID"
+								},
+								{
 									"key": "per_page",
-									"value": "10"
+									"value": "10",
+									"description": "Items per page (default: 10)"
 								}
 							]
 						}
@@ -922,7 +928,7 @@
 				},
 				{
 					"name": "Create Purchase Item",
-					"description": "Adds an item to a draft purchase.\n\n**Quantity rules:**\n- For `mobile` products: quantity must be a whole number (each device gets one `inventory_items` record on complete)\n- For `accessory` / `spare_part`: quantity can be fractional",
+					"description": "Adds an item to a draft purchase.\n\n**Quantity rules:**\n- For `mobile` products: quantity must be a whole number (each device gets one `inventory_items` record on complete)\n- For `accessory` / `spare_part`: quantity can be fractional\n\n**Note:** `purchase_header_id` is required in the request body (flat API, not nested).",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -933,7 +939,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"product_id\": 1,\n  \"quantity\": 10,\n  \"unit_cost\": 150.00\n}",
+							"raw": "{\n  \"purchase_header_id\": {{purchase_id}},\n  \"product_id\": 1,\n  \"quantity\": 10,\n  \"unit_cost\": 150.00\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -941,9 +947,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}/items",
+							"raw": "{{base_url}}/purchase-items",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-headers", "{{purchase_id}}", "items"]
+							"path": ["purchase-items"]
 						}
 					},
 					"event": [
@@ -963,6 +969,7 @@
 				},
 				{
 					"name": "Get Purchase Item",
+					"description": "Returns a single purchase item with the related `product` object eager-loaded.",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -972,15 +979,15 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}/items/{{item_id}}",
+							"raw": "{{base_url}}/purchase-items/{{item_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-headers", "{{purchase_id}}", "items", "{{item_id}}"]
+							"path": ["purchase-items", "{{item_id}}"]
 						}
 					}
 				},
 				{
 					"name": "Update Purchase Item",
-					"description": "**Immutability rule:** Only items in a draft purchase can be updated.",
+					"description": "**Immutability rule:** Only items in a draft purchase can be updated.\n\n**Note:** `purchase_header_id` is not accepted in the request body — items cannot be moved between purchase headers via update.",
 					"request": {
 						"method": "PUT",
 						"header": [
@@ -999,15 +1006,15 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}/items/{{item_id}}",
+							"raw": "{{base_url}}/purchase-items/{{item_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-headers", "{{purchase_id}}", "items", "{{item_id}}"]
+							"path": ["purchase-items", "{{item_id}}"]
 						}
 					}
 				},
 				{
 					"name": "Delete Purchase Item",
-					"description": "**Immutability rule:** Only items in a draft purchase can be deleted.",
+					"description": "**Immutability rule:** Only items in a draft purchase can be deleted.\n\nNote: deleting an item recalculates the purchase header's `total_amount`.",
 					"request": {
 						"method": "DELETE",
 						"header": [
@@ -1017,9 +1024,9 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/purchase-headers/{{purchase_id}}/items/{{item_id}}",
+							"raw": "{{base_url}}/purchase-items/{{item_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["purchase-headers", "{{purchase_id}}", "items", "{{item_id}}"]
+							"path": ["purchase-items", "{{item_id}}"]
 						}
 					}
 				}

@@ -13,11 +13,10 @@ class CategorySeeder extends Seeder
             'موبايلات',
             'إكسسوارات',
             'قطع غيار',
-            'أجهزة لوحية',
+            'تابلت',
             'سماعات',
             'شواحن',
-            'كابلات',
-            'حقائب وأغطية',
+          
         ];
 
         foreach ($categories as $name) {

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('used_device_purchase_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained();
-            $table->foreignId('used_device_purchase_header_id')->constrained();
+            $table->foreignId('used_device_purchase_header_id')->constrained(indexName: 'udpi_purchase_header_fk');
             $table->decimal('quantity', 10, 2);
             $table->decimal('unit_price', 10, 2);
             $table->decimal('total_price', 10, 2);

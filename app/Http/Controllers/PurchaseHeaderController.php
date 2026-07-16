@@ -110,7 +110,9 @@ class PurchaseHeaderController extends Controller
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
-        $purchases = PurchaseHeader::with(['supplier', 'createdBy'])->paginate($perPage);
+        $purchases = PurchaseHeader::with(['supplier', 'createdBy'])
+            ->withCount('items')
+            ->paginate($perPage);
 
         return ApiResponse::success(
             message: 'تم جلب فواتير الشراء بنجاح',
@@ -120,7 +122,7 @@ class PurchaseHeaderController extends Controller
 
     public function show(int $id)
     {
-        $purchase = PurchaseHeader::with(['supplier', 'createdBy'])->find($id);
+        $purchase = PurchaseHeader::with(['supplier', 'createdBy', 'items.product'])->find($id);
 
         if (!$purchase) {
             return ApiResponse::error(
