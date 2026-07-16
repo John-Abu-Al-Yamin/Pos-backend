@@ -109,10 +109,36 @@ class PurchaseHeaderController extends Controller
 
     public function index(Request $request)
     {
-        $perPage = (int) $request->input('per_page', 10);
-        $purchases = PurchaseHeader::with(['supplier', 'createdBy'])
-            ->withCount('items')
-            ->paginate($perPage);
+        $perPage = (int) $request->input('per_page', 12);
+
+        $query = PurchaseHeader::with(['supplier', 'createdBy'])
+            ->withCount('items');
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('purchaseHeader_number', 'like', "%{$search}%")
+                  ->orWhere('supplier_invoice_number', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        if ($request->filled('supplier_id')) {
+            $query->where('supplier_id', $request->input('supplier_id'));
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('created_at', '>=', $request->input('from_date'));
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('created_at', '<=', $request->input('to_date'));
+        }
+
+        $purchases = $query->paginate($perPage);
 
         return ApiResponse::success(
             message: 'تم جلب فواتير الشراء بنجاح',
