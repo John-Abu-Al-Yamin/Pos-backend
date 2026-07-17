@@ -34,7 +34,7 @@ class UsedDevicePurchaseItemService
             'unit_price' => $unitPrice,
             'total_price' => $quantity * $unitPrice,
 
-            'serial_number' => $data['serial_number'] ?? null,
+            'serial_number' => $this->generateSerialNumber(),
             'battery_health' => $data['battery_health'] ?? null,
             'screen_condition' => $data['screen_condition'] ?? null,
             'body_condition' => $data['body_condition'] ?? null,
@@ -77,7 +77,6 @@ class UsedDevicePurchaseItemService
             'unit_price' => $unitPrice,
             'total_price' => $quantity * $unitPrice,
 
-            'serial_number' => $data['serial_number'] ?? $item->serial_number,
             'battery_health' => $data['battery_health'] ?? $item->battery_health,
             'screen_condition' => $data['screen_condition'] ?? $item->screen_condition,
             'body_condition' => $data['body_condition'] ?? $item->body_condition,
@@ -102,6 +101,13 @@ class UsedDevicePurchaseItemService
         $item->delete();
 
         $this->recalculateTotal($purchase);
+    }
+
+    private function generateSerialNumber(): string
+    {
+        $lastItem = UsedDevicePurchaseItem::latest('id')->first();
+        $nextNumber = $lastItem ? $lastItem->id + 1 : 1;
+        return 'USD-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
     }
 
     private function recalculateTotal(UsedDevicePurchaseHeader $purchase): void

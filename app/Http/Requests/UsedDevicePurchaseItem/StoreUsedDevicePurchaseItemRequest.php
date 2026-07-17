@@ -36,6 +36,12 @@ class StoreUsedDevicePurchaseItemRequest extends BaseApiRequest
                 'numeric',
                 'min:0',
             ],
+            'battery_health' => [
+                'nullable',
+                'integer',
+                'min:0',
+                'max:100',
+            ],
             'screen_condition' => [
                 'nullable',
                 'string',
@@ -95,6 +101,9 @@ class StoreUsedDevicePurchaseItemRequest extends BaseApiRequest
             'unit_price.required' => 'سعر الوحدة مطلوب.',
             'unit_price.numeric'  => 'سعر الوحدة يجب أن يكون رقمًا.',
             'unit_price.min'      => 'سعر الوحدة لا يمكن أن يكون أقل من صفر.',
+            'battery_health.integer' => 'نسبة البطارية يجب أن تكون رقمًا صحيحًا.',
+            'battery_health.min'     => 'نسبة البطارية يجب ألا تقل عن 0.',
+            'battery_health.max'     => 'نسبة البطارية يجب ألا تزيد عن 100.',
             'screen_condition.string'  => 'حالة الشاشة يجب أن تكون نصًا.',
             'screen_condition.max'     => 'حالة الشاشة يجب ألا تزيد عن 255 حرفًا.',
             'body_condition.string'    => 'حالة الهيكل يجب أن تكون نصًا.',

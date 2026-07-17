@@ -13,11 +13,21 @@ class UsedDevicePurchaseItem extends Model
         'quantity',
         'unit_price',
         'total_price',
+        'serial_number',
+        'battery_health',
         'screen_condition',
         'body_condition',
         'fingerprint_working',
         'face_id_working',
         'notes',
+    ];
+
+    protected $casts = [
+        'battery_health' => 'integer',
+        'fingerprint_working' => 'boolean',
+        'face_id_working' => 'boolean',
+        'unit_price' => 'decimal:2',
+        'total_price' => 'decimal:2',
     ];
 
     public function product()

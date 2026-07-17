@@ -15,16 +15,18 @@ return new class extends Migration
             $table->id();
             $table->foreignId('product_id')->constrained();
             $table->foreignId('used_device_purchase_header_id')->constrained(indexName: 'udpi_purchase_header_fk');
+            $table->string('serial_number')->nullable();
             $table->decimal('quantity', 10, 2);
             $table->decimal('unit_price', 10, 2);
             $table->decimal('total_price', 10, 2);
 
             $table->string('screen_condition')->nullable();
             $table->string('body_condition')->nullable();
+            $table->string('battery_condition')->nullable();
             $table->boolean('fingerprint_working')->nullable();
             $table->boolean('face_id_working')->nullable();
             $table->text('notes')->nullable();
-            
+
             $table->timestamps();
         });
     }
