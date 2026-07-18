@@ -17,7 +17,7 @@ class SalesHeader extends Model
         'created_by',
     ];
 
-       protected $casts = [
+    protected $casts = [
         'subtotal' => 'decimal:2',
         'discount_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
@@ -33,8 +33,8 @@ class SalesHeader extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
-    public function salesItems()
+    public function items()
     {
-        return $this->hasMany(SalesItem::class);
+        return $this->hasMany(SalesItem::class, 'sales_header_id');
     }
 }

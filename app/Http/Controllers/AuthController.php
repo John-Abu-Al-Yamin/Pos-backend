@@ -71,4 +71,11 @@ class AuthController extends Controller
             message: 'تم إنشاء المستخدم بنجاح'
         );
     }
+
+    public function index()
+    {
+        return ApiResponse::success(
+            data: User::all(['id', 'name', 'email', 'role'])
+        );
+    }
 }

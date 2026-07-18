@@ -14,18 +14,46 @@ class SalesHeaderController extends Controller
     {
         $perPage = (int) $request->input('per_page', 10);
 
-        $sales = SalesHeader::with('customer')->latest()->paginate($perPage);
+        $query = SalesHeader::with('customer', 'createdBy');
 
-return ApiResponse::success(
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('invoice_number', 'like', "%{$search}%")
+                  ->orWhereHas('customer', function ($cq) use ($search) {
+                      $cq->where('name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('createdBy', function ($cq) use ($search) {
+                      $cq->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('created_at', '>=', $request->input('from_date'));
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('created_at', '<=', $request->input('to_date'));
+        }
+
+        if ($request->filled('created_by')) {
+            $query->where('created_by', $request->input('created_by'));
+        }
+
+        $sales = $query->latest()->paginate($perPage);
+
+        return ApiResponse::success(
             message: 'تم جلب حركات المخزون بنجاح',
             data: $sales
-        );    }
+        );
+    }
 
     public function show( int $id)
     {
         $sale = SalesHeader::with([
             'customer',
-            'creator',
+            'createdBy',
             'items.product',
             'items.inventoryItem',
         ])->findOrFail($id);

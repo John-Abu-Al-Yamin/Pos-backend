@@ -17,8 +17,8 @@ class PosController extends Controller
     ) {}
     public function index(Request $request)
     {
-
         $query = $request->get('query');
+        $type = $request->get('type', 'all');
 
         // Available Mobiles (New + Used)
         $mobiles = InventoryItem::query()
@@ -31,7 +31,6 @@ class PosController extends Controller
             ->where('quantity', '>', 0);
 
         if ($query) {
-
             $mobiles->whereHas('product', function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%");
             });
@@ -41,9 +40,24 @@ class PosController extends Controller
             });
         }
 
+        if ($type === 'new_mobile') {
+            $mobiles->whereNull('battery_health')
+                ->whereNull('screen_condition')
+                ->whereNull('body_condition');
+            $accessories->whereRaw('1 = 0');
+        } elseif ($type === 'used_mobile') {
+            $mobiles->where(function ($q) {
+                $q->whereNotNull('battery_health')
+                    ->orWhereNotNull('screen_condition')
+                    ->orWhereNotNull('body_condition');
+            });
+            $accessories->whereRaw('1 = 0');
+        } elseif ($type === 'accessory') {
+            $mobiles->whereRaw('1 = 0');
+        }
+
         return ApiResponse::success(
             data: [
-
                 'mobiles' => $mobiles->get(),
                 'accessories' => $accessories->get()
             ]

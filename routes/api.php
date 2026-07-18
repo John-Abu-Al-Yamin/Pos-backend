@@ -108,6 +108,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/used-purchase-headers/{purchase}/items/{item}', [UsedDevicePurchaseItemController::class, 'update']);
     Route::delete('/used-purchase-headers/{purchase}/items/{item}', [UsedDevicePurchaseItemController::class, 'destroy']);
 
+    // Users
+    Route::get('/users', [AuthController::class, 'index']);
+
     // Sales routes
     Route::get('/pos/sales', [PosController::class, 'index']);
     Route::post('/pos/checkout', [PosController::class, 'checkout']);
