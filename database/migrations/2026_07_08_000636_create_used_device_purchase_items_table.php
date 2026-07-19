@@ -22,7 +22,7 @@ return new class extends Migration
 
             $table->string('screen_condition')->nullable();
             $table->string('body_condition')->nullable();
-            $table->string('battery_condition')->nullable();
+            $table->string('battery_health')->nullable();
             $table->boolean('fingerprint_working')->nullable();
             $table->boolean('face_id_working')->nullable();
             $table->text('notes')->nullable();

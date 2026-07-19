@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             CustomerSeeder::class,
             UserSeeder::class,
             ProductSeeder::class,
+            MarkupSettingSeeder::class,
         ]);
     }
 }

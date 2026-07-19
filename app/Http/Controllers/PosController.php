@@ -23,15 +23,19 @@ class PosController extends Controller
         $query = $request->get('query');
         $type = $request->get('type', 'all');
 
-        // Available Mobiles (New + Used)
         $mobiles = InventoryItem::query()
             ->with('product')
             ->where('status', 'available');
 
-        // Available Accessories & Spare Parts
         $accessories = InventoryQuantity::query()
             ->with('product')
-            ->where('quantity', '>', 0);
+            ->where('quantity', '>', 0)
+            ->whereHas('product', fn ($q) => $q->where('type', 'accessory'));
+
+        $spareParts = InventoryQuantity::query()
+            ->with('product')
+            ->where('quantity', '>', 0)
+            ->whereHas('product', fn ($q) => $q->where('type', 'spare_part'));
 
         if ($query) {
             $mobiles->whereHas('product', function ($q) use ($query) {
@@ -39,6 +43,10 @@ class PosController extends Controller
             });
 
             $accessories->whereHas('product', function ($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%");
+            });
+
+            $spareParts->whereHas('product', function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%");
             });
         }
@@ -54,6 +62,7 @@ class PosController extends Controller
                     });
             });
             $accessories->whereRaw('1 = 0');
+            $spareParts->whereRaw('1 = 0');
         } elseif ($type === 'used_mobile') {
             $mobiles->where(function ($q) {
                 $q->where('source', 'used_purchase')
@@ -67,12 +76,13 @@ class PosController extends Controller
                     });
             });
             $accessories->whereRaw('1 = 0');
+            $spareParts->whereRaw('1 = 0');
         } elseif ($type === 'accessory') {
             $mobiles->whereRaw('1 = 0');
-            $accessories->whereHas('product', fn ($q) => $q->where('type', 'accessory'));
+            $spareParts->whereRaw('1 = 0');
         } elseif ($type === 'spare_part') {
             $mobiles->whereRaw('1 = 0');
-            $accessories->whereHas('product', fn ($q) => $q->where('type', 'spare_part'));
+            $accessories->whereRaw('1 = 0');
         }
 
         $mobilesCollection = $mobiles->get()->map(function (InventoryItem $item) {
@@ -100,10 +110,23 @@ class PosController extends Controller
             return $item;
         });
 
+        $sparePartsCollection = $spareParts->get()->map(function (InventoryQuantity $item) {
+            $pricing = $this->pricingService->calculateSellingPrice(
+                $item->product
+            );
+
+            $item->cost_price = $pricing['cost_price'];
+            $item->suggested_price = $pricing['unit_price'];
+            $item->profit_percentage = $pricing['profit_percentage'];
+
+            return $item;
+        });
+
         return ApiResponse::success(
             data: [
                 'mobiles' => $mobilesCollection,
                 'accessories' => $accessoriesCollection,
+                'spare_parts' => $sparePartsCollection,
             ]
         );
     }
