@@ -18,6 +18,7 @@ return new class extends Migration
             $table->foreignId('inventory_item_id')->nullable()->constrained()->nullOnDelete();
             $table->decimal('quantity', 10, 2);
             $table->decimal('unit_price', 12, 2);
+             $table->decimal('unit_cost', 12, 2)->nullable();
             $table->decimal('total_price', 12, 2);
 
             $table->timestamps();

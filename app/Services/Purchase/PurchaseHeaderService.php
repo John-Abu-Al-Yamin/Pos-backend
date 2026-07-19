@@ -85,6 +85,7 @@ class PurchaseHeaderService
                             'product_id' => $product->id,
                             'internal_serial' => $this->generateInventorySerial(),
                             'status' => 'available',
+                            'source' => 'new_purchase',
                             'cost_price' => $item->unit_price,
                             'battery_health' => null,
                             'screen_condition' => null,
@@ -110,12 +111,29 @@ class PurchaseHeaderService
                 }
 
                 if (in_array($product->type, ['accessory', 'spare_part'])) {
-                    $inventory = InventoryQuantity::firstOrCreate(
-                        ['product_id' => $product->id],
-                        ['quantity' => 0]
-                    );
+                    $inventory = InventoryQuantity::where('product_id', $product->id)
+                        ->lockForUpdate()
+                        ->first();
 
-                    $inventory->increment('quantity', $item->quantity);
+                    if (! $inventory) {
+                        $inventory = InventoryQuantity::create([
+                            'product_id' => $product->id,
+                            'quantity' => 0,
+                            'cost_price' => 0,
+                        ]);
+                    }
+
+                    $currentQty = $inventory->quantity;
+                    $currentCost = $inventory->cost_price;
+                    $newQty = $item->quantity;
+                    $newCost = $item->unit_price;
+
+                    $weightedAvgCost = $currentQty + $newQty > 0
+                        ? (($currentQty * $currentCost) + ($newQty * $newCost)) / ($currentQty + $newQty)
+                        : $newCost;
+
+                    $inventory->increment('quantity', $newQty);
+                    $inventory->update(['cost_price' => round($weightedAvgCost, 2)]);
                     // Create stock movement for the accessory or spare part
                     StockMovement::create([
                         'product_id' => $product->id,

@@ -8,10 +8,15 @@ use App\Models\Product;
 use App\Models\InventoryItem;
 use App\Models\InventoryQuantity;
 use App\Models\StockMovement;
+use App\Services\Pricing\PricingService;
 use Illuminate\Support\Facades\DB;
 
 class SalesCheckoutService
 {
+    public function __construct(
+        private PricingService $pricingService
+    ) {}
+
     public function checkout(array $data)
     {
         return DB::transaction(function () use ($data) {
@@ -33,15 +38,22 @@ class SalesCheckoutService
                         throw new \RuntimeException('Inventory item must be a mobile product.');
                     }
 
-                    $quantity = $item['quantity'] ?? 1;
+                    $quantity = 1; // Mobiles are unique physical items, quantity is strictly 1
                     $unitPrice = $item['unit_price'];
-                    $totalPrice = $unitPrice;
+                    $costPrice = $this->pricingService->resolveCostPrice(
+                        $inventoryItem->product,
+                        $inventoryItem
+                    );
+                    $totalPrice = $quantity * $unitPrice;
+
+                    $this->validatePrice($unitPrice, $costPrice);
 
                     $preparedItems[] = [
                         'product_id' => $inventoryItem->product_id,
                         'inventory_item_id' => $inventoryItem->id,
                         'quantity' => $quantity,
                         'unit_price' => $unitPrice,
+                        'unit_cost' => $costPrice,
                         'total_price' => $totalPrice,
                         'type' => 'mobile',
                         'inventory_item' => $inventoryItem,
@@ -60,7 +72,6 @@ class SalesCheckoutService
 
                     $quantity = $item['quantity'];
                     $unitPrice = $item['unit_price'];
-                    $totalPrice = $quantity * $unitPrice;
 
                     $inventoryQuantity = InventoryQuantity::where('product_id', $product->id)
                         ->lockForUpdate()
@@ -70,11 +81,17 @@ class SalesCheckoutService
                         throw new \RuntimeException('Product not found in inventory: ' . $product->name);
                     }
 
+                    $costPrice = $this->pricingService->resolveCostPrice($product);
+                    $totalPrice = $quantity * $unitPrice;
+
+                    $this->validatePrice($unitPrice, $costPrice);
+
                     $preparedItems[] = [
                         'product_id' => $product->id,
                         'inventory_item_id' => null,
                         'quantity' => $quantity,
                         'unit_price' => $unitPrice,
+                        'unit_cost' => $costPrice,
                         'total_price' => $totalPrice,
                         'type' => 'quantity_product',
                         'inventory_quantity' => $inventoryQuantity,
@@ -103,12 +120,13 @@ class SalesCheckoutService
 
             foreach ($preparedItems as $preparedItem) {
 
-                $saleItem = SalesItem::create([
+                SalesItem::create([
                     'sales_header_id' => $sale->id,
                     'product_id' => $preparedItem['product_id'],
                     'inventory_item_id' => $preparedItem['inventory_item_id'],
                     'quantity' => $preparedItem['quantity'],
                     'unit_price' => $preparedItem['unit_price'],
+                    'unit_cost' => $preparedItem['unit_cost'],
                     'total_price' => $preparedItem['total_price'],
                 ]);
 
@@ -133,6 +151,7 @@ class SalesCheckoutService
                     'movement_type' => 'sale',
                     'movement' => 'out',
                     'quantity' => $preparedItem['quantity'],
+                    'unit_cost' => $preparedItem['unit_cost'],
                     'reference_type' => SalesHeader::class,
                     'reference_id' => $sale->id,
                     'created_by' => auth()->id(),
@@ -143,11 +162,15 @@ class SalesCheckoutService
         });
     }
 
+    private function validatePrice(float $unitPrice, float $costPrice): void
+    {
+        if ($costPrice >= 0 && $unitPrice < $costPrice) {
+            throw new \RuntimeException('Selling price cannot be below cost price.');
+        }
+    }
+
     private function generateInvoiceNumber(): string
     {
-        $lastSale = SalesHeader::latest('id')->first();
-        $nextId = $lastSale ? $lastSale->id + 1 : 1;
-
-        return 'SAL-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        return 'SAL-' . date('YmdHis') . str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
     }
 }

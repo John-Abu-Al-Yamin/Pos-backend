@@ -10,6 +10,7 @@ class InventoryItem extends Model
         'product_id',
         'internal_serial',
         'status',
+        'source',
         'cost_price',
         'battery_health',
         'screen_condition',
@@ -24,6 +25,7 @@ class InventoryItem extends Model
         'battery_health' => 'integer',
         'fingerprint_working' => 'boolean',
         'face_id_working' => 'boolean',
+        'source' => 'string',
     ];
 
     /*
@@ -63,5 +65,13 @@ class InventoryItem extends Model
         return $this->status === 'under_repair';
     }
 
-    
+    public function isNewMobile(): bool
+    {
+        return $this->source === 'new_purchase' || $this->source === null;
+    }
+
+    public function isUsedMobile(): bool
+    {
+        return $this->source === 'used_purchase';
+    }
 }

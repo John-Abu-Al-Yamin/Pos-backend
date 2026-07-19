@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('product_id')->constrained()->restrictOnDelete();
             $table->string('internal_serial')->unique();
-            
 
+            $table->enum('source', ['new_purchase', 'used_purchase'])->nullable();
             $table->enum('status', [
                 'available',
                 'sold',

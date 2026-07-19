@@ -47,8 +47,8 @@ class CheckoutRequest extends BaseApiRequest
 
             'items.*.quantity' => [
                 'required_without:items.*.inventory_item_id',
-                'numeric',
-                'min:0.01',
+                'integer',
+                'min:1',
             ],
 
             'items.*.unit_price' => [
@@ -80,8 +80,8 @@ class CheckoutRequest extends BaseApiRequest
             'items.*.inventory_item_id.exists' => 'الجهاز المختار مش موجود.',
 
             'items.*.quantity.required_without' => 'الكمية مطلوبة للمنتجات.',
-            'items.*.quantity.numeric' => 'الكمية لازم تكون رقم.',
-            'items.*.quantity.min' => 'الكمية لازم تكون أكبر من صفر.',
+            'items.*.quantity.integer' => 'الكمية لازم تكون رقم صحيح.',
+            'items.*.quantity.min' => 'الكمية لازم تكون 1 على الأقل.',
 
             'items.*.unit_price.required' => 'سعر البيع مطلوب.',
             'items.*.unit_price.numeric' => 'سعر البيع لازم يكون رقم.',

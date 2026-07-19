@@ -9,11 +9,12 @@ class InventoryQuantity extends Model
     protected $fillable = [
         'product_id',
         'quantity',
-      
+        'cost_price',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
+        'cost_price' => 'decimal:2',
     ];
 
     public function product()
