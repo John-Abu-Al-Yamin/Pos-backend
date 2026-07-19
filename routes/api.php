@@ -6,6 +6,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InventoryItemController;
 use App\Http\Controllers\InventoryQuantityController;
+use App\Http\Controllers\MarkupSettingController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseHeaderController;
@@ -56,6 +57,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/brands/{id}', [BrandController::class, 'show']);
     Route::put('/brands/{id}', [BrandController::class, 'update']);
     Route::delete('/brands/{id}', [BrandController::class, 'destroy']);
+
+    // Markup Setting routes
+    Route::get('/markup-settings', [MarkupSettingController::class, 'index']);
+    Route::post('/markup-settings', [MarkupSettingController::class, 'store']);
+    Route::get('/markup-settings/{id}', [MarkupSettingController::class, 'show']);
+    Route::put('/markup-settings/{id}', [MarkupSettingController::class, 'update']);
+    Route::delete('/markup-settings/{id}', [MarkupSettingController::class, 'destroy']);
 
     // Product routes
     Route::get('/products', [ProductController::class, 'index']);
