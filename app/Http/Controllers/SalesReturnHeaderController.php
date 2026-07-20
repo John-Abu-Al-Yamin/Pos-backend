@@ -2,17 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\SalesReturnHeader\StoreSalesReturnHeaderRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\SalesReturnHeader;
-use App\Services\SalesReturn\SalesReturnHeaderService;
 use Illuminate\Http\Request;
 
 class SalesReturnHeaderController extends Controller
 {
-    public function __construct(
-        private SalesReturnHeaderService $salesReturnHeaderService
-    ) {}
 
     public function index(Request $request)
     {
@@ -88,18 +83,6 @@ class SalesReturnHeaderController extends Controller
 
         return ApiResponse::success(
             message: 'Sales return retrieved successfully',
-            data: $return
-        );
-    }
-
-    public function store(StoreSalesReturnHeaderRequest $request)
-    {
-        $return = $this->salesReturnHeaderService->createDraft(
-            $request->validated()
-        );
-
-        return ApiResponse::success(
-            message: 'تم إنشاء مرتجع البيع بنجاح',
             data: $return
         );
     }

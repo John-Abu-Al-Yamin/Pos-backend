@@ -133,7 +133,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Sales Return routes
     Route::get('/sales-returns', [SalesReturnHeaderController::class, 'index']);
-    Route::post('/sales-returns', [SalesReturnHeaderController::class, 'store']);
     Route::get('/sales-returns/{id}', [SalesReturnHeaderController::class, 'show']);
 
 
