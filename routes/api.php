@@ -12,6 +12,8 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseHeaderController;
 use App\Http\Controllers\PurchaseItemController;
 use App\Http\Controllers\SalesHeaderController;
+use App\Http\Controllers\SalesReturnHeaderController;
+use App\Http\Controllers\SalesReturnableController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UsedDevicePurchaseHeaderController;
@@ -122,10 +124,17 @@ Route::middleware('auth:sanctum')->group(function () {
     // Sales routes
     Route::get('/pos/sales', [PosController::class, 'index']);
     Route::post('/pos/checkout', [PosController::class, 'checkout']);
-     Route::get('/sales-headers', [SalesHeaderController::class, 'index']);
+    Route::get('/sales-headers', [SalesHeaderController::class, 'index']);
     Route::get('/sales-headers/{id}', [SalesHeaderController::class, 'show']);
 
+    // Sales Returnable (eligible for return)
+    Route::get('/sales-returnable', [SalesReturnableController::class, 'index']);
+    Route::get('/sales-returnable/{id}', [SalesReturnableController::class, 'show']);
 
+    // Sales Return routes
+    Route::get('/sales-returns', [SalesReturnHeaderController::class, 'index']);
+    Route::post('/sales-returns', [SalesReturnHeaderController::class, 'store']);
+    Route::get('/sales-returns/{id}', [SalesReturnHeaderController::class, 'show']);
 
 
     // Admin-only routes
