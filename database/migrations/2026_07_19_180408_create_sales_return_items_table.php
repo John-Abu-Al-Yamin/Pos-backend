@@ -34,9 +34,6 @@ return new class extends Migration
             $table->decimal('quantity', 10, 2);
             $table->decimal('unit_refund_amount', 12, 2);
             $table->decimal('total_refund', 12, 2);
-
-            $table->text('reason')->nullable();
-
             $table->timestamps();
         });
     }

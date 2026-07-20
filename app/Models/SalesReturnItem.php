@@ -14,7 +14,6 @@ class SalesReturnItem extends Model
         'quantity',
         'unit_refund_amount',
         'total_refund',
-        'reason',
     ];
 
     protected $casts = [

@@ -18,14 +18,11 @@ return new class extends Migration
             $table->string('return_number')->unique();
             $table->foreignId('customer_id')->nullable()->constrained('customers')->nullOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->enum('status', ['draft', 'completed', 'cancelled'])->default('draft');
             $table->decimal('total_refund_amount', 12, 2)->default(0);
             // General reason for the return
             $table->text('reason')->nullable();
             // Dates
             $table->date('return_date');
-            $table->timestamp('completed_at')->nullable();
-            $table->timestamp('cancelled_at')->nullable();
             $table->timestamps();
         });
     }

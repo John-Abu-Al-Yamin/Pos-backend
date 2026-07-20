@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SalesReturn\StoreSalesReturnRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\SalesReturnHeader;
+use App\Services\SalesReturn\SalesReturnService;
 use Illuminate\Http\Request;
 
 class SalesReturnHeaderController extends Controller
 {
+    public function __construct(
+        private SalesReturnService $salesReturnService
+    ) {}
 
     public function index(Request $request)
     {
@@ -33,10 +38,6 @@ class SalesReturnHeaderController extends Controller
                         $uq->where('name', 'like', "%{$search}%");
                     });
             });
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
         }
 
         if ($request->filled('customer_id')) {
@@ -85,5 +86,16 @@ class SalesReturnHeaderController extends Controller
             message: 'Sales return retrieved successfully',
             data: $return
         );
+    }
+
+
+    public function store(StoreSalesReturnRequest $request)
+    {
+        $return = $this->salesReturnService->processReturn($request->validated());
+
+        return response()->json([
+            'message' => 'Sales return completed successfully',
+            'data' => $return,
+        ], 201);
     }
 }

@@ -11,19 +11,14 @@ class SalesReturnHeader extends Model
         'return_number',
         'customer_id',
         'user_id',
-        'status',
         'total_refund_amount',
         'reason',
         'return_date',
-        'completed_at',
-        'cancelled_at',
     ];
 
     protected $casts = [
         'total_refund_amount' => 'decimal:2',
         'return_date' => 'date',
-        'completed_at' => 'datetime',
-        'cancelled_at' => 'datetime',
     ];
 
     public function salesHeader()
