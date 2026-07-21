@@ -20,10 +20,7 @@ class SalesReturnableController extends Controller
                 $q->whereRaw('quantity > COALESCE((
                     SELECT SUM(sri.quantity)
                     FROM sales_return_items sri
-                    INNER JOIN sales_return_headers srh
-                        ON sri.sales_return_header_id = srh.id
                     WHERE sri.sales_item_id = sales_items.id
-                        AND srh.status = \'completed\'
                 ), 0)');
             });
 
@@ -73,10 +70,7 @@ class SalesReturnableController extends Controller
             );
         }
 
-        $returnedQtyByItem = SalesReturnItem::whereHas(
-            'salesReturnHeader',
-            fn ($q) => $q->where('status', 'completed')
-        )
+        $returnedQtyByItem = SalesReturnItem::query()
             ->whereIn('sales_item_id', $sale->items->pluck('id'))
             ->groupBy('sales_item_id')
             ->selectRaw('sales_item_id, SUM(quantity) as total_returned')

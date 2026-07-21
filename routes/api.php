@@ -11,6 +11,8 @@ use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseHeaderController;
 use App\Http\Controllers\PurchaseItemController;
+use App\Http\Controllers\PurchaseReturnableController;
+use App\Http\Controllers\PurchaseReturnHeaderController;
 use App\Http\Controllers\SalesHeaderController;
 use App\Http\Controllers\SalesReturnHeaderController;
 use App\Http\Controllers\SalesReturnableController;
@@ -136,6 +138,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sales-returns', [SalesReturnHeaderController::class, 'store']);
     Route::get('/sales-returns/{id}', [SalesReturnHeaderController::class, 'show']);
 
+
+    // Purchase Returnable (eligible for return)
+    Route::get('/purchase-returnable', [PurchaseReturnableController::class, 'index']);
+    Route::get('/purchase-returnable/{id}', [PurchaseReturnableController::class, 'show']);
+
+    // Purchase Return routes
+    Route::get('/purchase-returns', [PurchaseReturnHeaderController::class, 'index']);
+    Route::get('/purchase-returns/{id}', [PurchaseReturnHeaderController::class, 'show']);
 
     // Admin-only routes
     Route::middleware('admin')->prefix('admin')->group(function () {
