@@ -146,6 +146,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Purchase Return routes
     Route::get('/purchase-returns', [PurchaseReturnHeaderController::class, 'index']);
     Route::get('/purchase-returns/{id}', [PurchaseReturnHeaderController::class, 'show']);
+    Route::post('/purchase-returns', [PurchaseReturnHeaderController::class, 'store']);
+
 
     // Admin-only routes
     Route::middleware('admin')->prefix('admin')->group(function () {

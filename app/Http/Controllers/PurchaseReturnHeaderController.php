@@ -2,12 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\PurchaseReturn\StorePurchaseReturnRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\PurchaseReturnHeader;
+use App\Services\PurchaseReturn\PurchaseReturnService;
 use Illuminate\Http\Request;
 
 class PurchaseReturnHeaderController extends Controller
 {
+    public function __construct(
+        private PurchaseReturnService $purchaseReturnService
+    ) {}
+
+    public function store(StorePurchaseReturnRequest $request)
+    {
+        $return = $this->purchaseReturnService->processReturn($request->validated());
+
+        return response()->json([
+            'message' => 'Purchase return completed successfully',
+            'data' => $return,
+        ], 201);
+    }
+
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 12);
