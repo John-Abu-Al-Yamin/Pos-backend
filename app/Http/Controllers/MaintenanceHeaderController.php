@@ -135,7 +135,8 @@ class MaintenanceHeaderController extends Controller
             $header = $this->maintenanceStatusService->transition(
                 $header,
                 $request->input('status'),
-                $request->input('delivery_date')
+                $request->input('delivery_date'),
+                $request->input('paid_amount')
             );
 
             $header->loadSum('operations', 'cost');

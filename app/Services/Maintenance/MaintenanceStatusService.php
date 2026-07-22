@@ -17,7 +17,7 @@ class MaintenanceStatusService
         'cancelled' => [],
     ];
 
-    public function transition(MaintenanceHeader $header, string $newStatus, ?string $deliveryDate = null): MaintenanceHeader
+    public function transition(MaintenanceHeader $header, string $newStatus, ?string $deliveryDate = null, ?float $paidAmount = null): MaintenanceHeader
     {
         $currentStatus = $header->status;
 
@@ -33,16 +33,27 @@ class MaintenanceStatusService
             );
         }
 
-        return DB::transaction(function () use ($header, $newStatus, $deliveryDate) {
+        return DB::transaction(function () use ($header, $newStatus, $deliveryDate, $paidAmount) {
             if ($newStatus === 'cancelled' && $header->usedParts()->exists()) {
                 $partService = app(MaintenancePartService::class);
                 $partService->returnAllParts($header);
             }
 
             $data = ['status' => $newStatus];
+            
+            $newAdvancePayment = $header->advance_payment;
+            if ($paidAmount !== null && $paidAmount > 0) {
+                $newAdvancePayment += $paidAmount;
+                $data['advance_payment'] = $newAdvancePayment;
+            }
 
             if ($newStatus === 'delivered') {
                 $data['delivery_date'] = $deliveryDate ?? now()->toDateString();
+                
+                $remaining = max(0, (float) $header->total_cost - (float) $newAdvancePayment);
+                if ($remaining > 0) {
+                    throw new DomainException('لا يمكن تسليم الجهاز قبل استلام كامل المبلغ المتبقي.');
+                }
             }
 
             $header->update($data);

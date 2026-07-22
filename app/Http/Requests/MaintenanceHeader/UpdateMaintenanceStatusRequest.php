@@ -16,6 +16,7 @@ class UpdateMaintenanceStatusRequest extends BaseApiRequest
         return [
             'status' => 'required|in:pending,under_repair,waiting_parts,repaired,delivered,cancelled',
             'delivery_date' => 'nullable|date',
+            'paid_amount' => 'nullable|numeric|min:0',
         ];
     }
 
