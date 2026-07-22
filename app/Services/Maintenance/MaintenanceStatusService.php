@@ -43,6 +43,12 @@ class MaintenanceStatusService
             
             $newAdvancePayment = $header->advance_payment;
             if ($paidAmount !== null && $paidAmount > 0) {
+                $currentRemaining = max(0, (float) $header->total_cost - (float) $header->advance_payment);
+                if ($paidAmount > $currentRemaining) {
+                    throw new DomainException(
+                        'المبلغ المدفوع يتجاوز المبلغ المطلوب. أقصى مبلغ مسموح به هو ' . number_format($currentRemaining, 2) . '.'
+                    );
+                }
                 $newAdvancePayment += $paidAmount;
                 $data['advance_payment'] = $newAdvancePayment;
             }
