@@ -4,6 +4,7 @@ namespace App\Services\Maintenance;
 
 use App\Models\MaintenanceHeader;
 use DomainException;
+use Illuminate\Support\Facades\DB;
 
 class MaintenanceStatusService
 {
@@ -32,14 +33,21 @@ class MaintenanceStatusService
             );
         }
 
-        $data = ['status' => $newStatus];
+        return DB::transaction(function () use ($header, $newStatus, $deliveryDate) {
+            if ($newStatus === 'cancelled' && $header->usedParts()->exists()) {
+                $partService = app(MaintenancePartService::class);
+                $partService->returnAllParts($header);
+            }
 
-        if ($newStatus === 'delivered') {
-            $data['delivery_date'] = $deliveryDate ?? now()->toDateString();
-        }
+            $data = ['status' => $newStatus];
 
-        $header->update($data);
+            if ($newStatus === 'delivered') {
+                $data['delivery_date'] = $deliveryDate ?? now()->toDateString();
+            }
 
-        return $header->fresh();
+            $header->update($data);
+
+            return $header->fresh();
+        });
     }
 }

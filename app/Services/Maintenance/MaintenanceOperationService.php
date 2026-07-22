@@ -16,7 +16,10 @@ class MaintenanceOperationService
 
         $data['maintenance_header_id'] = $header->id;
         
-        return MaintenanceOperation::create($data);
+        $operation = MaintenanceOperation::create($data);
+        $header->recalculateTotalCost();
+        
+        return $operation;
     }
 
     public function updateOperation(MaintenanceHeader $header, MaintenanceOperation $operation, array $data): MaintenanceOperation
@@ -30,6 +33,8 @@ class MaintenanceOperationService
         }
 
         $operation->update($data);
+
+        $header->recalculateTotalCost();
 
         return $operation->fresh();
     }
@@ -45,5 +50,6 @@ class MaintenanceOperationService
         }
 
         $operation->delete();
+        $header->recalculateTotalCost();
     }
 }

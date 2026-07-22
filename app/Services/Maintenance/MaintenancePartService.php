@@ -65,6 +65,8 @@ class MaintenancePartService
                 'created_by' => auth()->id(),
             ]);
 
+            $header->recalculateTotalCost();
+
             return $part->load('product');
         });
     }
@@ -113,6 +115,8 @@ class MaintenancePartService
                     'quantity' => $newQuantity,
                 ]);
 
+            $header->recalculateTotalCost();
+
             return $part->fresh()->load('product');
         });
     }
@@ -146,6 +150,38 @@ class MaintenancePartService
             ]);
 
             $part->delete();
+            $header->recalculateTotalCost();
+        });
+    }
+
+    public function returnAllParts(MaintenanceHeader $header): void
+    {
+        DB::transaction(function () use ($header) {
+            foreach ($header->usedParts as $part) {
+                $inventory = InventoryQuantity::where('product_id', $part->product_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($inventory) {
+                    $inventory->increment('quantity', $part->quantity);
+                }
+
+                StockMovement::create([
+                    'product_id' => $part->product_id,
+                    'inventory_item_id' => null,
+                    'movement_type' => 'stock_adjustment',
+                    'movement' => 'in',
+                    'quantity' => $part->quantity,
+                    'unit_cost' => (float) $part->cost_price,
+                    'reference_type' => MaintenanceHeader::class,
+                    'reference_id' => $header->id,
+                    'notes' => 'إرجاع قطع الغيار بسبب إلغاء التذكرة',
+                    'created_by' => auth()->id(),
+                ]);
+
+                $part->delete();
+            }
+            $header->recalculateTotalCost();
         });
     }
 }
