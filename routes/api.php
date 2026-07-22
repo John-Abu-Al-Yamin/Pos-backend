@@ -16,6 +16,11 @@ use App\Http\Controllers\PurchaseReturnHeaderController;
 use App\Http\Controllers\SalesHeaderController;
 use App\Http\Controllers\SalesReturnHeaderController;
 use App\Http\Controllers\SalesReturnableController;
+use App\Http\Controllers\MaintenanceDeviceController;
+use App\Http\Controllers\MaintenanceHeaderController;
+use App\Http\Controllers\MaintenanceTicketController;
+use App\Http\Controllers\MaintenanceOperationController;
+use App\Http\Controllers\MaintenanceUsedPartController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UsedDevicePurchaseHeaderController;
@@ -148,6 +153,37 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/purchase-returns/{id}', [PurchaseReturnHeaderController::class, 'show']);
     Route::post('/purchase-returns', [PurchaseReturnHeaderController::class, 'store']);
 
+
+    // Maintenance Ticket route (atomic creation of device + header)
+    Route::post('/maintenance-tickets', [MaintenanceTicketController::class, 'store']);
+
+    // Maintenance Device routes
+    Route::get('/maintenance-devices', [MaintenanceDeviceController::class, 'index']);
+    Route::post('/maintenance-devices', [MaintenanceDeviceController::class, 'store']);
+    Route::get('/maintenance-devices/{id}', [MaintenanceDeviceController::class, 'show']);
+    Route::put('/maintenance-devices/{id}', [MaintenanceDeviceController::class, 'update']);
+    Route::delete('/maintenance-devices/{id}', [MaintenanceDeviceController::class, 'destroy']);
+
+    // Maintenance Header routes
+    Route::get('/maintenance-headers', [MaintenanceHeaderController::class, 'index']);
+    Route::get('/maintenance-headers/{id}', [MaintenanceHeaderController::class, 'show']);
+    Route::put('/maintenance-headers/{id}', [MaintenanceHeaderController::class, 'update']);
+    Route::delete('/maintenance-headers/{id}', [MaintenanceHeaderController::class, 'destroy']);
+    Route::post('/maintenance-headers/{id}/status', [MaintenanceHeaderController::class, 'updateStatus']);
+
+    // Maintenance Operation routes (nested under header)
+    Route::get('/maintenance-headers/{header}/operations', [MaintenanceOperationController::class, 'index']);
+    Route::post('/maintenance-headers/{header}/operations', [MaintenanceOperationController::class, 'store']);
+    Route::get('/maintenance-headers/{header}/operations/{operation}', [MaintenanceOperationController::class, 'show']);
+    Route::put('/maintenance-headers/{header}/operations/{operation}', [MaintenanceOperationController::class, 'update']);
+    Route::delete('/maintenance-headers/{header}/operations/{operation}', [MaintenanceOperationController::class, 'destroy']);
+
+    // Maintenance Used Part routes (nested under header)
+    Route::get('/maintenance-headers/{header}/used-parts', [MaintenanceUsedPartController::class, 'index']);
+    Route::post('/maintenance-headers/{header}/used-parts', [MaintenanceUsedPartController::class, 'store']);
+    Route::get('/maintenance-headers/{header}/used-parts/{part}', [MaintenanceUsedPartController::class, 'show']);
+    Route::put('/maintenance-headers/{header}/used-parts/{part}', [MaintenanceUsedPartController::class, 'update']);
+    Route::delete('/maintenance-headers/{header}/used-parts/{part}', [MaintenanceUsedPartController::class, 'destroy']);
 
     // Admin-only routes
     Route::middleware('admin')->prefix('admin')->group(function () {

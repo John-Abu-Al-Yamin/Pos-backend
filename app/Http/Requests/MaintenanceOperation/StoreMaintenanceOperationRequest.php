@@ -1,0 +1,39 @@
+<?php
+
+namespace App\Http\Requests\MaintenanceOperation;
+
+use App\Http\Requests\BaseApiRequest;
+
+class StoreMaintenanceOperationRequest extends BaseApiRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'description' => 'required|string',
+            'operation_date' => 'required|date',
+            'technician' => 'nullable|string|max:255',
+            'cost' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'description.required' => 'وصف العملية مطلوب.',
+            'description.string' => 'وصف العملية يجب أن يكون نصًا.',
+            'operation_date.required' => 'تاريخ العملية مطلوب.',
+            'operation_date.date' => 'تاريخ العملية يجب أن يكون تاريخًا صحيحًا.',
+            'technician.string' => 'اسم الفني يجب أن يكون نصًا.',
+            'technician.max' => 'اسم الفني يجب ألا يزيد عن 255 حرفًا.',
+            'cost.numeric' => 'التكلفة يجب أن تكون رقمًا.',
+            'cost.min' => 'التكلفة لا يمكن أن تكون أقل من صفر.',
+            'notes.string' => 'الملاحظات يجب أن تكون نصًا.',
+        ];
+    }
+}
