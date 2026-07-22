@@ -18,6 +18,9 @@ class StoreMaintenanceTicketRequest extends BaseApiRequest
             'maintenance_device_id' => 'nullable|exists:maintenance_devices,id',
             'customer_id' => 'nullable|exists:customers,id',
             'product_id' => 'nullable|exists:products,id',
+            'device_type' => 'required_without:maintenance_device_id|string|max:255',
+            'brand' => 'nullable|string|max:255',
+            'model' => 'nullable|string|max:255',
             'serial_number' => 'nullable|string|max:255',
             'color' => 'nullable|string|max:255',
             'condition_notes' => 'nullable|string',
@@ -33,10 +36,6 @@ class StoreMaintenanceTicketRequest extends BaseApiRequest
     {
         $validator->after(function (Validator $validator) {
             $advancePayment = $this->input('advance_payment');
-
-            // Initial total cost is 0 since no parts/operations are added yet. 
-            // In a real scenario, you might want advance payment to just exist as credit, 
-            // but for ticket creation, we don't strictly bind it to a pre-defined total cost anymore.
         });
     }
 
@@ -46,6 +45,13 @@ class StoreMaintenanceTicketRequest extends BaseApiRequest
             'maintenance_device_id.exists' => 'الجهاز المحدد غير موجود.',
             'customer_id.exists' => 'العميل المحدد غير موجود.',
             'product_id.exists' => 'المنتج المحدد غير موجود.',
+            'device_type.required_without' => 'نوع الجهاز مطلوب عند إنشاء جهاز جديد.',
+            'device_type.string' => 'نوع الجهاز يجب أن يكون نصًا.',
+            'device_type.max' => 'نوع الجهاز يجب ألا يزيد عن 255 حرفًا.',
+            'brand.string' => 'العلامة التجارية يجب أن تكون نصًا.',
+            'brand.max' => 'العلامة التجارية يجب ألا تزيد عن 255 حرفًا.',
+            'model.string' => 'الموديل يجب أن يكون نصًا.',
+            'model.max' => 'الموديل يجب ألا يزيد عن 255 حرفًا.',
             'serial_number.string' => 'الرقم التسلسلي يجب أن يكون نصًا.',
             'serial_number.max' => 'الرقم التسلسلي يجب ألا يزيد عن 255 حرفًا.',
             'color.string' => 'اللون يجب أن يكون نصًا.',

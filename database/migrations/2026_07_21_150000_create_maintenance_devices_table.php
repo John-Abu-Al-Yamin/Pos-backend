@@ -16,6 +16,11 @@ return new class extends Migration
                 ->constrained('products')
                 ->restrictOnDelete();
 
+            // Manual device information
+            $table->string('device_type')->nullable();
+            $table->string('brand')->nullable();
+            $table->string('model')->nullable();
+
             $table->string('serial_number')->nullable();
             $table->string('color')->nullable();
             $table->text('condition_notes')->nullable();

@@ -16,6 +16,9 @@ class MaintenanceTicketService
             if (!$deviceId) {
                 $deviceData = [
                     'product_id' => $data['product_id'] ?? null,
+                    'device_type' => $data['device_type'] ?? null,
+                    'brand' => $data['brand'] ?? null,
+                    'model' => $data['model'] ?? null,
                     'serial_number' => $data['serial_number'] ?? null,
                     'color' => $data['color'] ?? null,
                     'condition_notes' => $data['condition_notes'] ?? null,

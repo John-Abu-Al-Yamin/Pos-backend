@@ -8,6 +8,9 @@ class MaintenanceDevice extends Model
 {
     protected $fillable = [
         'product_id',
+        'device_type',
+        'brand',
+        'model',
         'serial_number',
         'color',
         'condition_notes',

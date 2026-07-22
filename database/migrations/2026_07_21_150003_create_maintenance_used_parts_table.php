@@ -20,7 +20,11 @@ return new class extends Migration
                 ->restrictOnDelete();
 
             $table->decimal('quantity', 10, 2);
+
+            // Cost & Selling price
+            $table->decimal('cost_price', 12, 2)->default(0);
             $table->decimal('unit_price', 12, 2);
+
             $table->decimal('total_price', 12, 2);
 
             $table->timestamps();
