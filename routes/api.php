@@ -21,6 +21,7 @@ use App\Http\Controllers\MaintenanceHeaderController;
 use App\Http\Controllers\MaintenanceTicketController;
 use App\Http\Controllers\MaintenanceOperationController;
 use App\Http\Controllers\MaintenanceUsedPartController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UsedDevicePurchaseHeaderController;
@@ -73,6 +74,38 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/markup-settings/{id}', [MarkupSettingController::class, 'show']);
     Route::put('/markup-settings/{id}', [MarkupSettingController::class, 'update']);
     Route::delete('/markup-settings/{id}', [MarkupSettingController::class, 'destroy']);
+
+    // Expense Categories (static enum values)
+    Route::get('/expense-categories', function () {
+        return \App\Http\Responses\ApiResponse::success(
+            message: 'تم جلب تصنيفات المصروفات بنجاح',
+            data: [
+                ['name' => 'electricity'],
+                ['name' => 'water'],
+                ['name' => 'internet'],
+                ['name' => 'rent'],
+                ['name' => 'salary'],
+                ['name' => 'cleaning'],
+                ['name' => 'maintenance'],
+                ['name' => 'phone_bills'],
+                ['name' => 'office_supplies'],
+                ['name' => 'equipment'],
+                ['name' => 'packaging'],
+                ['name' => 'security_cameras'],
+                ['name' => 'taxes'],
+                ['name' => 'other'],
+            ]
+        );
+    });
+
+    // Expense routes
+    Route::get('/expenses', [ExpenseController::class, 'index']);
+    Route::post('/expenses', [ExpenseController::class, 'store']);
+    Route::get('/expenses/{id}', [ExpenseController::class, 'show']);
+    Route::put('/expenses/{id}', [ExpenseController::class, 'update']);
+    Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
+    Route::post('/expenses/{id}/pay', [ExpenseController::class, 'pay']);
+    Route::post('/expenses/{id}/cancel', [ExpenseController::class, 'cancel']);
 
     // Product routes
     Route::get('/products', [ProductController::class, 'index']);
