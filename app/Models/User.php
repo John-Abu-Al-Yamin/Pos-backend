@@ -57,4 +57,21 @@ class User extends Authenticatable
     {
         return $this->hasMany(SalesHeader::class, 'created_by');
     }
+
+    public function salaryAssignments()
+    {
+        return $this->hasMany(SalaryAssignment::class);
+    }
+
+    public function activeSalary()
+    {
+        return $this->hasOne(SalaryAssignment::class)
+            ->whereNull('end_date')
+            ->latest('effective_date');
+    }
+
+    public function salaryPayments()
+    {
+        return $this->hasMany(SalaryPayment::class);
+    }
 }

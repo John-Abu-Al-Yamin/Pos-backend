@@ -24,6 +24,9 @@ use App\Http\Controllers\MaintenanceUsedPartController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\SalaryAssignmentController;
+use App\Http\Controllers\SalaryPaymentController;
+use App\Http\Controllers\SalaryPaymentItemController;
 use App\Http\Controllers\UsedDevicePurchaseHeaderController;
 use App\Http\Controllers\UsedDevicePurchaseItemController;
 use Illuminate\Http\Request;
@@ -217,6 +220,29 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/maintenance-headers/{header}/used-parts/{part}', [MaintenanceUsedPartController::class, 'show']);
     Route::put('/maintenance-headers/{header}/used-parts/{part}', [MaintenanceUsedPartController::class, 'update']);
     Route::delete('/maintenance-headers/{header}/used-parts/{part}', [MaintenanceUsedPartController::class, 'destroy']);
+
+    // Salary Assignment routes
+    Route::get('/salary-assignments', [SalaryAssignmentController::class, 'index']);
+    Route::post('/salary-assignments', [SalaryAssignmentController::class, 'store']);
+    Route::get('/salary-assignments/{id}', [SalaryAssignmentController::class, 'show']);
+    Route::put('/salary-assignments/{id}', [SalaryAssignmentController::class, 'update']);
+    Route::delete('/salary-assignments/{id}', [SalaryAssignmentController::class, 'destroy']);
+
+    // Salary Payment routes
+    Route::get('/salary-payments', [SalaryPaymentController::class, 'index']);
+    Route::post('/salary-payments', [SalaryPaymentController::class, 'store']);
+    Route::get('/salary-payments/{id}', [SalaryPaymentController::class, 'show']);
+    Route::put('/salary-payments/{id}', [SalaryPaymentController::class, 'update']);
+    Route::delete('/salary-payments/{id}', [SalaryPaymentController::class, 'destroy']);
+    Route::post('/salary-payments/{id}/confirm', [SalaryPaymentController::class, 'confirm']);
+    Route::post('/salary-payments/{id}/cancel', [SalaryPaymentController::class, 'cancel']);
+
+    // Salary Payment Item routes (nested under payment)
+    Route::get('/salary-payments/{payment}/items', [SalaryPaymentItemController::class, 'index']);
+    Route::post('/salary-payments/{payment}/items', [SalaryPaymentItemController::class, 'store']);
+    Route::get('/salary-payments/{payment}/items/{item}', [SalaryPaymentItemController::class, 'show']);
+    Route::put('/salary-payments/{payment}/items/{item}', [SalaryPaymentItemController::class, 'update']);
+    Route::delete('/salary-payments/{payment}/items/{item}', [SalaryPaymentItemController::class, 'destroy']);
 
     // Admin-only routes
     Route::middleware('admin')->prefix('admin')->group(function () {
