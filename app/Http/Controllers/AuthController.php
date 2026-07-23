@@ -72,10 +72,16 @@ class AuthController extends Controller
         );
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $query = User::select(['id', 'name', 'email', 'role']);
+
+        if ($request->filled('role')) {
+            $query->where('role', $request->role);
+        }
+
         return ApiResponse::success(
-            data: User::all(['id', 'name', 'email', 'role'])
+            data: $query->paginate(min((int) ($request->per_page ?? 100), 500))
         );
     }
 }
