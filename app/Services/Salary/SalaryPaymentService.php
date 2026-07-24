@@ -5,6 +5,7 @@ namespace App\Services\Salary;
 use App\Models\SalaryAssignment;
 use App\Models\SalaryPayment;
 use App\Models\User;
+use Carbon\Carbon;
 use DomainException;
 use Illuminate\Support\Facades\DB;
 
@@ -12,7 +13,14 @@ class SalaryPaymentService
 {
     public function createPayment(array $data): SalaryPayment
     {
-        return DB::transaction(function () use ($data) {
+        $now = Carbon::now();
+        $day = (int) $now->format('d');
+
+        if ($day > 5) {
+            throw new DomainException('لا يمكن إنشاء دفعة راتب بعد يوم 5 من الشهر');
+        }
+
+        return DB::transaction(function () use ($data, $now) {
             $user = User::findOrFail($data['user_id']);
 
             $existingDraft = SalaryPayment::forUser($user->id)
@@ -33,12 +41,17 @@ class SalaryPaymentService
 
             $paymentNumber = $this->generatePaymentNumber();
 
+            $periodStart = Carbon::create($now->year, $now->month, 1)->format('Y-m-d');
+            $periodEnd = Carbon::create($now->year, $now->month, 1)->endOfMonth()->format('Y-m-d');
+
             $payment = SalaryPayment::create([
                 'user_id' => $user->id,
                 'salary_assignment_id' => $assignment->id,
                 'payment_number' => $paymentNumber,
                 'total_amount' => 0,
                 'status' => 'draft',
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
                 'notes' => $data['notes'] ?? null,
                 'created_by' => auth()->id(),
             ]);

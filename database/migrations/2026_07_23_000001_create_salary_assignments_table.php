@@ -16,16 +16,12 @@ return new class extends Migration
                 ->cascadeOnDelete();
 
             $table->decimal('base_salary', 10, 2)->nullable();
-            $table->decimal('hourly_rate', 10, 2)->nullable();
 
             $table->enum('payment_frequency', [
                 'monthly',
                 'bi_weekly',
                 'weekly'
             ])->default('monthly');
-
-            $table->date('effective_date');
-            $table->date('end_date')->nullable();
 
             $table->text('reason')->nullable();
 
@@ -41,19 +37,7 @@ return new class extends Migration
 
             $table->timestamps();
 
-
-            // Indexes
-            $table->unique([
-                'user_id',
-                'effective_date'
-            ], 'salary_assignments_user_date_unique');
-
-
-            $table->index([
-                'user_id',
-                'effective_date',
-                'end_date'
-            ], 'salary_assignments_active_lookup');
+            $table->unique('user_id', 'salary_assignments_user_unique');
         });
     }
 

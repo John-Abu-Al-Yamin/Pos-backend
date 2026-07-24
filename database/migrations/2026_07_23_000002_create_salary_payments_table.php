@@ -14,9 +14,9 @@ return new class extends Migration
             $table->foreignId('salary_assignment_id')->nullable()->constrained()->nullOnDelete();
             $table->string('payment_number')->unique();
             $table->decimal('total_amount', 10, 2)->default(0);
-            $table->date('payment_date');
-            $table->date('period_start');
-            $table->date('period_end');
+            $table->date('payment_date')->nullable();
+            $table->date('period_start')->nullable();
+            $table->date('period_end')->nullable();
             $table->enum('status', ['draft', 'confirmed', 'cancelled'])->default('draft');
             $table->text('notes')->nullable();
             $table->timestamp('confirmed_at')->nullable();
@@ -27,18 +27,6 @@ return new class extends Migration
             $table->index('user_id');
             $table->index('payment_date');
             $table->index('status');
-
-            $table->index([
-                'user_id',
-                'period_start',
-                'period_end'
-            ], 'salary_payments_period_lookup');
-
-            $table->unique([
-                'user_id',
-                'period_start',
-                'period_end'
-            ], 'salary_payments_user_period_unique');
         });
     }
 

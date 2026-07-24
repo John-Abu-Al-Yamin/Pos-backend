@@ -17,9 +17,6 @@ return new class extends Migration
             ]);
             $table->string('label');
             $table->decimal('amount', 10, 2);
-            $table->decimal('quantity', 8, 2)->nullable();
-            $table->decimal('rate', 10, 2)->nullable();
-            $table->text('notes')->nullable();
             $table->timestamps();
 
             $table->index('salary_payment_id');

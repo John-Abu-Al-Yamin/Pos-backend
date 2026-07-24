@@ -13,6 +13,8 @@ class SalaryPayment extends Model
         'payment_number',
         'total_amount',
         'payment_date',
+        'period_start',
+        'period_end',
         'status',
         'notes',
         'confirmed_at',
@@ -24,6 +26,8 @@ class SalaryPayment extends Model
     {
         return [
             'payment_date' => 'date',
+            'period_start' => 'date',
+            'period_end' => 'date',
             'confirmed_at' => 'datetime',
             'total_amount' => 'decimal:2',
         ];
