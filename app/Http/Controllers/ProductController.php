@@ -2,27 +2,34 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ProductImportTemplateExport;
+use App\Http\Requests\Products\ImportProductsRequest;
 use App\Http\Requests\Products\StoreProductRequest;
 use App\Http\Requests\Products\UpdateProductRequest;
 use App\Http\Responses\ApiResponse;
+use App\Imports\ProductsImport;
 use App\Models\Product;
+use App\Services\Product\ProductImportService;
+use App\Services\Product\ProductService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProductController extends Controller
 {
-    //
-
+    public function __construct(private readonly ProductService $productService)
+    {
+    }
 
     public function store(StoreProductRequest $request)
     {
-        $data = $request->validated();
-        $product = Product::create($data);
+        $product = $this->productService->create($request->validated());
+
         return ApiResponse::success(
-            message: 'تم إنشاء المنتج بنجاح',
+            message: 'Product created successfully',
             data: $product
         );
     }
-
 
     public function index(Request $request)
     {
@@ -44,11 +51,10 @@ class ProductController extends Controller
             ->paginate($perPage);
 
         return ApiResponse::success(
-            message: 'تم جلب المنتجات بنجاح',
+            message: 'Products fetched successfully',
             data: $products
         );
     }
-
 
     public function show(int $id)
     {
@@ -56,14 +62,14 @@ class ProductController extends Controller
 
         if (!$product) {
             return ApiResponse::error(
-                message: 'المنتج غير موجود',
+                message: 'Product not found',
                 statusCode: 404
             );
         }
 
         return ApiResponse::success(
             data: $product,
-            message: 'تم جلب المنتج بنجاح'
+            message: 'Product fetched successfully'
         );
     }
 
@@ -73,17 +79,16 @@ class ProductController extends Controller
 
         if (!$product) {
             return ApiResponse::error(
-                message: 'المنتج غير موجود',
+                message: 'Product not found',
                 statusCode: 404
             );
         }
 
-        $data = $request->validated();
-        $product->update($data);
+        $product->update($request->validated());
 
         return ApiResponse::success(
             data: $product,
-            message: 'تم تحديث المنتج بنجاح'
+            message: 'Product updated successfully'
         );
     }
 
@@ -93,7 +98,7 @@ class ProductController extends Controller
 
         if (!$product) {
             return ApiResponse::error(
-                message: 'المنتج غير موجود',
+                message: 'Product not found',
                 statusCode: 404
             );
         }
@@ -101,7 +106,36 @@ class ProductController extends Controller
         $product->delete();
 
         return ApiResponse::success(
-            message: 'تم حذف المنتج بنجاح'
+            message: 'Product deleted successfully'
         );
+    }
+
+    public function import(ImportProductsRequest $request, ProductImportService $service)
+    {
+        $startedAt = microtime(true);
+        Log::info('Product import started');
+
+        Excel::import(new ProductsImport($service), $request->file('file'));
+
+        $summary = $service->summary();
+        $duration = round(microtime(true) - $startedAt, 2);
+
+        Log::info('Product import finished', [
+            'duration' => $duration,
+            'total_rows' => $summary['total_rows'],
+            'created' => $summary['created'],
+            'skipped' => $summary['skipped'],
+            'failed' => $summary['failed'],
+        ]);
+
+        return ApiResponse::success(
+            message: 'Product import completed',
+            data: array_merge($summary, ['duration_seconds' => $duration])
+        );
+    }
+
+    public function importTemplate()
+    {
+        return Excel::download(new ProductImportTemplateExport(), 'product-import-template.xlsx');
     }
 }
