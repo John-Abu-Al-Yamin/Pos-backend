@@ -1,7 +1,7 @@
 {
 	"info": {
 		"name": "POS System",
-		"description": "Point of Sale System API\n\n## Authentication\nMost endpoints require a Bearer token. Use the **Login** request to get a token, which is automatically stored in the `token` collection variable via the test script.\n\n## Purchase Immutability Rules\n- A purchase is created in **draft** status.\n- While **draft**: header can be updated, items can be added/updated/deleted.\n- On **complete**: inventory records + stock movements are created, status becomes `completed`.\n- Once **completed**: the purchase is **immutable**. No edits, no status changes.\n- **Cancel** is only allowed for **draft** purchases.\n- All business rule violations return `HTTP 400` with a `DomainException` message.\n\n## Used Device Purchase (Buying from Customers)\nFollows the same draft \u2192 complete \u2192 immutable lifecycle as new device purchases.\n- Only `mobile` products are allowed.\n- Items include condition tracking (screen, body, fingerprint, Face ID).\n\n## Inventory Rules\n- `inventory_items` and `inventory_quantities` are **read-only** APIs.\n- `stock_movements` is **read-only**, created automatically by services.\n\n## Sales\n- Single-screen POS workflow: search \u2192 add to cart \u2192 checkout.\n- `GET /pos/sales` searches available products (mobiles, accessories, spare parts).\n- `POST /pos/checkout` completes the entire sale in one atomic transaction.\n- Mobiles are tracked via `inventory_items` (serialized); accessories via `inventory_quantities`.\n- `sales_headers` and `sales_items` are read-only after creation.",
+		"description": "Point of Sale System API\n\n## Authentication\nMost endpoints require a Bearer token. Use the **Login** request to get a token, which is automatically stored in the `token` collection variable via the test script.\n\n## Purchase Immutability Rules\n- A purchase is created in **draft** status.\n- While **draft**: header can be updated, items can be added/updated/deleted.\n- On **complete**: inventory records + stock movements are created, status becomes `completed`.\n- Once **completed**: the purchase is **immutable**. No edits, no status changes.\n- **Cancel** is only allowed for **draft** purchases.\n- All business rule violations return `HTTP 400` with a `DomainException` message.\n\n## Used Device Purchase (Buying from Customers)\nFollows the same draft → complete → immutable lifecycle as new device purchases.\n- Only `mobile` products are allowed.\n- Items include condition tracking (screen, body, battery, fingerprint, Face ID).\n\n## Inventory Rules\n- `inventory_items` and `inventory_quantities` are **read-only** APIs.\n- `stock_movements` is **read-only**, created automatically by services.\n\n## Sales\n- Single-screen POS workflow: search → add to cart → checkout.\n- `GET /pos/sales` searches available products (mobiles, accessories, spare parts).\n- `POST /pos/checkout` completes the entire sale in one atomic transaction.\n- Mobiles are tracked via `inventory_items` (serialized); accessories via `inventory_quantities`.\n- `sales_headers` and `sales_items` are read-only after creation.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -37,6 +37,61 @@
 		},
 		{
 			"key": "sale_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "markup_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "expense_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "sales_return_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "purchase_return_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "maintenance_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "device_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "operation_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "part_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "salary_assignment_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "salary_payment_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "salary_item_id",
 			"value": "1",
 			"type": "string"
 		}
@@ -153,6 +208,41 @@
 							"raw": "{{base_url}}/admin/create-user",
 							"host": ["{{base_url}}"],
 							"path": ["admin", "create-user"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"description": "User management endpoints",
+			"item": [
+				{
+					"name": "List Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": ["{{base_url}}"],
+							"path": ["users"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "100",
+									"description": "Items per page (default: 100, max: 500)"
+								},
+								{
+									"key": "role",
+									"value": "",
+									"description": "Filter by role (admin, employee)"
+								}
+							]
 						}
 					}
 				}
@@ -722,12 +812,398 @@
 							"path": ["products", "1"]
 						}
 					}
+				},
+				{
+					"name": "Import Products",
+					"description": "Import products from Excel/CSV file.\n- Supported formats: xlsx, xls, csv\n- Max file size: 5MB (5120 KB)\n\nReturns a summary with created/skipped/failed counts.",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"value": "",
+									"description": "Excel/CSV file (xlsx, xls, csv)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/products/import",
+							"host": ["{{base_url}}"],
+							"path": ["products", "import"]
+						}
+					}
+				},
+				{
+					"name": "Download Import Template",
+					"description": "Downloads an Excel template file for bulk product import.\n- Returns a .xlsx file download.",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/products/import/template",
+							"host": ["{{base_url}}"],
+							"path": ["products", "import", "template"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Markup Settings",
+			"description": "Markup (profit) settings per product type.\n\n**Product types for markup:**\n- `new_mobile` - New mobile devices\n- `used_mobile` - Used mobile devices\n- `accessory` - Accessories\n- `spare_part` - Spare parts\n\n**Profit percentage:** 0 to 999.99",
+			"item": [
+				{
+					"name": "List Markup Settings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/markup-settings",
+							"host": ["{{base_url}}"],
+							"path": ["markup-settings"]
+						}
+					}
+				},
+				{
+					"name": "Create Markup Setting",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"product_type\": \"new_mobile\",\n  \"profit_percentage\": 15.5\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/markup-settings",
+							"host": ["{{base_url}}"],
+							"path": ["markup-settings"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('markup_id', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Markup Setting",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/markup-settings/{{markup_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["markup-settings", "{{markup_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Markup Setting",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"product_type\": \"new_mobile\",\n  \"profit_percentage\": 20.0\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/markup-settings/{{markup_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["markup-settings", "{{markup_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Markup Setting",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/markup-settings/{{markup_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["markup-settings", "{{markup_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Expense Categories",
+			"description": "Static list of expense categories (enum values)",
+			"item": [
+				{
+					"name": "List Expense Categories",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/expense-categories",
+							"host": ["{{base_url}}"],
+							"path": ["expense-categories"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Expenses",
+			"description": "Expense management with status workflow:\n1. **Create** → status is `pending`\n2. **Pay** → status becomes `paid`\n3. **Cancel** → status becomes `cancelled`\n\n**Immutability rules:**\n- Only pending expenses can be updated or deleted.\n- Pay/cancel only works for pending expenses.",
+			"item": [
+				{
+					"name": "List Expenses",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/expenses",
+							"host": ["{{base_url}}"],
+							"path": ["expenses"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "10",
+									"description": "Items per page (default: 10)"
+								},
+								{
+									"key": "expense_category",
+									"value": "",
+									"description": "Filter by category (electricity, water, internet, rent, etc.)"
+								},
+								{
+									"key": "status",
+									"value": "",
+									"description": "Filter by status (pending, paid, cancelled)"
+								},
+								{
+									"key": "from_date",
+									"value": "",
+									"description": "Filter from date (Y-m-d)"
+								},
+								{
+									"key": "to_date",
+									"value": "",
+									"description": "Filter to date (Y-m-d)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search in notes"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Expense",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"expense_category\": \"electricity\",\n  \"amount\": 1500.00,\n  \"expense_date\": \"2024-12-01\",\n  \"notes\": \"Monthly electricity bill\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/expenses",
+							"host": ["{{base_url}}"],
+							"path": ["expenses"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('expense_id', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Expense",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/expenses/{{expense_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["expenses", "{{expense_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Expense",
+					"description": "**Immutability rule:** Only pending expenses can be updated.",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"expense_category\": \"water\",\n  \"amount\": 2000.00,\n  \"expense_date\": \"2024-12-05\",\n  \"notes\": \"Updated notes\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/expenses/{{expense_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["expenses", "{{expense_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Expense",
+					"description": "**Immutability rule:** Only pending expenses can be deleted.",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/expenses/{{expense_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["expenses", "{{expense_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Pay Expense",
+					"description": "Marks an expense as paid. Only pending expenses can be paid.",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/expenses/{{expense_id}}/pay",
+							"host": ["{{base_url}}"],
+							"path": ["expenses", "{{expense_id}}", "pay"]
+						}
+					}
+				},
+				{
+					"name": "Cancel Expense",
+					"description": "Cancels an expense. Only pending expenses can be cancelled.",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/expenses/{{expense_id}}/cancel",
+							"host": ["{{base_url}}"],
+							"path": ["expenses", "{{expense_id}}", "cancel"]
+						}
+					}
 				}
 			]
 		},
 		{
 			"name": "Purchase Headers",
-			"description": "Purchase order workflow:\n1. **Create** → status is `draft`\n2. **Add items** via nested `/purchase-headers/{purchase}/items`\n3. **Complete** → creates inventory records + stock movements, status becomes `completed`\n4. **Completed purchases are immutable** — no edits, no cancellation\n5. **Cancel** only works for **draft** purchases\n\n**Error responses for business rule violations (HTTP 400):**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"Only draft purchases can be completed.\",\n    \"errors\": null\n}\n```",
+			"description": "Purchase order workflow:\n1. **Create** → status is `draft`\n2. **Add items** via `/purchase-items`\n3. **Complete** → creates inventory records + stock movements, status becomes `completed`\n4. **Completed purchases are immutable** — no edits, no cancellation\n5. **Cancel** only works for **draft** purchases\n\n**Error responses for business rule violations (HTTP 400):**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"Only draft purchases can be completed.\",\n    \"errors\": null\n}\n```",
 			"item": [
 				{
 					"name": "List Purchase Headers",
@@ -746,7 +1222,33 @@
 							"query": [
 								{
 									"key": "per_page",
-									"value": "10"
+									"value": "12",
+									"description": "Items per page (default: 12)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search by purchase number or supplier invoice number"
+								},
+								{
+									"key": "status",
+									"value": "",
+									"description": "Filter by status (draft, completed, cancelled)"
+								},
+								{
+									"key": "supplier_id",
+									"value": "",
+									"description": "Filter by supplier ID"
+								},
+								{
+									"key": "from_date",
+									"value": "",
+									"description": "Filter from date (Y-m-d)"
+								},
+								{
+									"key": "to_date",
+									"value": "",
+									"description": "Filter to date (Y-m-d)"
 								}
 							]
 						}
@@ -811,7 +1313,7 @@
 				},
 				{
 					"name": "Update Purchase Header",
-					"description": "**Immutability rule:** Only draft purchases can be updated.\n- The `status` field is **not allowed** in the request body.\n- Status can only be changed via `Complete` or `Cancel` endpoints.\n\n**Error response if completed/cancelled:**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"لا يمكن تعديل فاتورة مكتملة أو ملغاة.\",\n    \"errors\": null\n}\n```",
+					"description": "**Immutability rule:** Only draft purchases can be updated.\n- The `status` field is **not allowed** in the request body.\n- Status can only be changed via `Complete` or `Cancel` endpoints.\n\n**Validation:** `supplier_id` is optional on update (`sometimes`).\n\n**Error response if completed/cancelled:**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"لا يمكن تعديل فاتورة مكتملة أو ملغاة.\",\n    \"errors\": null\n}\n```",
 					"request": {
 						"method": "PUT",
 						"header": [
@@ -987,7 +1489,7 @@
 				},
 				{
 					"name": "Update Purchase Item",
-					"description": "**Immutability rule:** Only items in a draft purchase can be updated.\n\n**Note:** `purchase_header_id` is not accepted in the request body — items cannot be moved between purchase headers via update.",
+					"description": "**Immutability rule:** Only items in a draft purchase can be updated.\n\n**Note:** `purchase_header_id` is not accepted in the request body — items cannot be moved between purchase headers via update.\n\n**Validation:** `product_id`, `quantity`, and `unit_cost` are all required.",
 					"request": {
 						"method": "PUT",
 						"header": [
@@ -1030,309 +1532,491 @@
 						}
 					}
 				}
-        ]
-    },
-    {
-        "name": "Used Device Purchase Headers",
-        "description": "Purchase of used mobile devices from customers.\n\n**Workflow (same as new device purchases):**\n1. Create \u2192 status is `draft`\n2. Add items via `/used-purchase-headers/{purchase}/items`\n3. Complete \u2192 creates inventory records + stock movements, status becomes `completed`\n4. Completed purchases are immutable\n5. Cancel only works for draft purchases\n\n**Error responses for business rule violations (HTTP 400):**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"Only draft purchases can be completed.\",\n    \"errors\": null\n}\n```",
-        "item": [
-            {
-                "name": "List Used Purchase Headers",
-                "request": {
-                    "method": "GET",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "url": {
-                        "raw": "{{base_url}}/used-purchase-headers",
-                        "host": ["{{base_url}}"],
-                        "path": ["used-purchase-headers"],
-                        "query": [
-                            {
-                                "key": "per_page",
-                                "value": "10"
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "name": "Create Used Purchase Header",
-                "request": {
-                    "method": "POST",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "body": {
-                        "mode": "raw",
-                        "raw": "{\n  \"purchase_number\": \"UPD-2024-001\",\n  \"customer_id\": 1,\n  \"notes\": \"Bought used iPhone from customer\"\n}",
-                        "options": {
-                            "raw": {
-                                "language": "json"
-                            }
-                        }
-                    },
-                    "url": {
-                        "raw": "{{base_url}}/used-purchase-headers",
-                        "host": ["{{base_url}}"],
-                        "path": ["used-purchase-headers"]
-                    }
-                },
-                "event": [
-                    {
-                        "listen": "test",
-                        "script": {
-                            "exec": [
-                                "if (pm.response.code === 200) {",
-                                "    var jsonData = pm.response.json();",
-                                "    pm.collectionVariables.set('used_purchase_id', jsonData.data.id);",
-                                "}"
-                            ],
-                            "type": "text/javascript"
-                        }
-                    }
-                ]
-            },
-            {
-                "name": "Get Used Purchase Header",
-                "request": {
-                    "method": "GET",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "url": {
-                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}",
-                        "host": ["{{base_url}}"],
-                        "path": ["used-purchase-headers", "{{used_purchase_id}}"]
-                    }
-                }
-            },
-            {
-                "name": "Update Used Purchase Header",
-                "description": "**Immutability rule:** Only draft purchases can be updated.\n- The `status` field is **not allowed** in the request body.\n- Status can only be changed via `Complete` or `Cancel` endpoints.",
-                "request": {
-                    "method": "PUT",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "body": {
-                        "mode": "raw",
-                        "raw": "{\n  \"customer_id\": 1,\n  \"notes\": \"Updated notes\",\n  \"purchase_number\": \"UPD-2024-001\"\n}",
-                        "options": {
-                            "raw": {
-                                "language": "json"
-                            }
-                        }
-                    },
-                    "url": {
-                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}",
-                        "host": ["{{base_url}}"],
-                        "path": ["used-purchase-headers", "{{used_purchase_id}}"]
-                    }
-                }
-            },
-            {
-                "name": "Delete Used Purchase Header",
-                "description": "**Immutability rule:** Only draft purchases can be deleted.",
-                "request": {
-                    "method": "DELETE",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "url": {
-                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}",
-                        "host": ["{{base_url}}"],
-                        "path": ["used-purchase-headers", "{{used_purchase_id}}"]
-                    }
-                }
-            },
-            {
-                "name": "Complete Used Purchase Header",
-                "description": "**Business flow:**\n1. Validates purchase is in `draft` status\n2. Creates `inventory_items` records for each mobile device (one per unit of quantity)\n3. Creates `stock_movements` for all items\n4. Sets status to `completed` and records `completed_at` timestamp\n\n**After completion:** Purchase becomes immutable.",
-                "request": {
-                    "method": "POST",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "url": {
-                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/complete",
-                        "host": ["{{base_url}}"],
-                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "complete"]
-                    }
-                }
-            },
-            {
-                "name": "Cancel Used Purchase Header",
-                "description": "**Immutability rule:** Only draft purchases can be cancelled.",
-                "request": {
-                    "method": "POST",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "url": {
-                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/cancel",
-                        "host": ["{{base_url}}"],
-                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "cancel"]
-                    }
-                }
-            }
-        ]
-    },
-    {
-        "name": "Used Device Purchase Items",
-        "description": "Purchase items are nested under used device purchase headers.\n\n**Immutability rules:**\n- Items can only be added/updated/deleted while the purchase is **draft**.\n- If the purchase is `completed` or `cancelled`, all mutation requests return `HTTP 400`.\n\n**Item validation:**\n- Only `mobile` products are allowed.\n- Includes device condition fields: screen_condition, body_condition, fingerprint_working, face_id_working.\n\n**Typical workflow:**\n1. Create a purchase header (draft)\n2. Add items via `POST /used-purchase-headers/{purchase}/items`\n3. Complete the purchase\n4. The items become read-only",
-        "item": [
-            {
-                "name": "List Used Purchase Items",
-                "request": {
-                    "method": "GET",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "url": {
-                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items",
-                        "host": ["{{base_url}}"],
-                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "items"],
-                        "query": [
-                            {
-                                "key": "per_page",
-                                "value": "10"
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "name": "Create Used Purchase Item",
-                "description": "Adds a used mobile device item to a draft purchase.\n\n**Condition fields:**\n- `screen_condition`: e.g., \"Good\", \"Scratched\", \"Cracked\"\n- `body_condition`: e.g., \"Excellent\", \"Worn\", \"Damaged\"\n- `fingerprint_working`: boolean\n- `face_id_working`: boolean",
-                "request": {
-                    "method": "POST",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "body": {
-                        "mode": "raw",
-                        "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"unit_price\": 5000.00,\n  \"screen_condition\": \"Good\",\n  \"body_condition\": \"Excellent\",\n  \"fingerprint_working\": true,\n  \"face_id_working\": true,\n  \"notes\": \"Original box included\"\n}",
-                        "options": {
-                            "raw": {
-                                "language": "json"
-                            }
-                        }
-                    },
-                    "url": {
-                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items",
-                        "host": ["{{base_url}}"],
-                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "items"]
-                    }
-                },
-                "event": [
-                    {
-                        "listen": "test",
-                        "script": {
-                            "exec": [
-                                "if (pm.response.code === 200) {",
-                                "    var jsonData = pm.response.json();",
-                                "    pm.collectionVariables.set('used_item_id', jsonData.data.id);",
-                                "}"
-                            ],
-                            "type": "text/javascript"
-                        }
-                    }
-                ]
-            },
-            {
-                "name": "Get Used Purchase Item",
-                "request": {
-                    "method": "GET",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "url": {
-                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items/{{used_item_id}}",
-                        "host": ["{{base_url}}"],
-                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "items", "{{used_item_id}}"]
-                    }
-                }
-            },
-            {
-                "name": "Update Used Purchase Item",
-                "description": "**Immutability rule:** Only items in a draft purchase can be updated.",
-                "request": {
-                    "method": "PUT",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "body": {
-                        "mode": "raw",
-                        "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"unit_price\": 4500.00,\n  \"screen_condition\": \"Fair\",\n  \"body_condition\": \"Good\",\n  \"fingerprint_working\": true,\n  \"face_id_working\": false,\n  \"notes\": \"Face ID not working\"\n}",
-                        "options": {
-                            "raw": {
-                                "language": "json"
-                            }
-                        }
-                    },
-                    "url": {
-                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items/{{used_item_id}}",
-                        "host": ["{{base_url}}"],
-                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "items", "{{used_item_id}}"]
-                    }
-                }
-            },
-            {
-                "name": "Delete Used Purchase Item",
-                "description": "**Immutability rule:** Only items in a draft purchase can be deleted.",
-                "request": {
-                    "method": "DELETE",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "url": {
-                        "raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items/{{used_item_id}}",
-                        "host": ["{{base_url}}"],
-                        "path": ["used-purchase-headers", "{{used_purchase_id}}", "items", "{{used_item_id}}"]
-                    }
-                }
-            }
-        ]
-    },
-    {
-        "name": "Inventory (Read Only)",
+			]
+		},
+		{
+			"name": "Purchase Returnable",
+			"description": "Read-only endpoints for purchases eligible for return.\n\nOnly **completed** purchases with items that have remaining returnable quantity are shown.\n- Each item's returnable quantity = `quantity_purchased - already_returned_qty`\n- For mobiles: individual `inventory_items` that are still `available` can be returned\n- For accessories/spare_parts: limited by remaining stock",
+			"item": [
+				{
+					"name": "List Purchase Returnable",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/purchase-returnable",
+							"host": ["{{base_url}}"],
+							"path": ["purchase-returnable"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "12",
+									"description": "Items per page (default: 12)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search by purchase number or supplier name"
+								},
+								{
+									"key": "supplier_id",
+									"value": "",
+									"description": "Filter by supplier ID"
+								},
+								{
+									"key": "from_date",
+									"value": "",
+									"description": "Filter from date (Y-m-d)"
+								},
+								{
+									"key": "to_date",
+									"value": "",
+									"description": "Filter to date (Y-m-d)"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Purchase Returnable",
+					"description": "Returns detailed returnable items for a specific purchase.\n- Includes per-item returnable quantity and pricing",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/purchase-returnable/1",
+							"host": ["{{base_url}}"],
+							"path": ["purchase-returnable", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Purchase Returns",
+			"description": "Purchase return management.\n\n**Workflow:**\n1. Look up returnable purchases via `/purchase-returnable`\n2. Submit a return via `POST /purchase-returns`\n3. View returns via `GET /purchase-returns` and `GET /purchase-returns/{id}`\n\n**Item rules:**\n- Each return item must reference a `purchase_item_id`\n- For mobiles: `inventory_item_id` identifies the specific device\n- For accessories/spare_parts: only `quantity` is needed\n- Returns are processed atomically — stock is adjusted automatically",
+			"item": [
+				{
+					"name": "List Purchase Returns",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/purchase-returns",
+							"host": ["{{base_url}}"],
+							"path": ["purchase-returns"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "12",
+									"description": "Items per page (default: 12)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search by return number, purchase number, or supplier name"
+								},
+								{
+									"key": "supplier_id",
+									"value": "",
+									"description": "Filter by supplier ID"
+								},
+								{
+									"key": "purchase_header_id",
+									"value": "",
+									"description": "Filter by purchase header ID"
+								},
+								{
+									"key": "from_date",
+									"value": "",
+									"description": "Filter from date (Y-m-d)"
+								},
+								{
+									"key": "to_date",
+									"value": "",
+									"description": "Filter to date (Y-m-d)"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Purchase Return",
+					"description": "Processes a purchase return atomically.\n\n**Request validation:**\n- `purchase_header_id` is required\n- `items` array must have at least 1 item\n- Each item needs `purchase_item_id`, `quantity`, `unit_refund_amount`\n- For mobiles: include `inventory_item_id`",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"purchase_header_id\": 1,\n  \"supplier_id\": 1,\n  \"reason\": \"Defective units\",\n  \"refund_method\": \"bank_transfer\",\n  \"return_date\": \"2024-12-15\",\n  \"items\": [\n    {\n      \"purchase_item_id\": 1,\n      \"inventory_item_id\": 1,\n      \"quantity\": 1,\n      \"unit_refund_amount\": 150.00\n    },\n    {\n      \"purchase_item_id\": 2,\n      \"quantity\": 2,\n      \"unit_refund_amount\": 50.00\n    }\n  ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/purchase-returns",
+							"host": ["{{base_url}}"],
+							"path": ["purchase-returns"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('purchase_return_id', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Purchase Return",
+					"description": "Returns a single purchase return with items, product details, and inventory item info.",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/purchase-returns/{{purchase_return_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["purchase-returns", "{{purchase_return_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Used Device Purchase Headers",
+			"description": "Purchase of used mobile devices from customers.\n\n**Workflow (same as new device purchases):**\n1. Create → status is `draft`\n2. Add items via `/used-purchase-headers/{purchase}/items`\n3. Complete → creates inventory records + stock movements, status becomes `completed`\n4. Completed purchases are immutable\n5. Cancel only works for draft purchases\n\n**Error responses for business rule violations (HTTP 400):**\n```json\n{\n    \"success\": false,\n    \"status\": 400,\n    \"message\": \"Only draft purchases can be completed.\",\n    \"errors\": null\n}\n```",
+			"item": [
+				{
+					"name": "List Used Purchase Headers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/used-purchase-headers",
+							"host": ["{{base_url}}"],
+							"path": ["used-purchase-headers"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Used Purchase Header",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"purchase_number\": \"UPD-2024-001\",\n  \"customer_id\": 1,\n  \"notes\": \"Bought used iPhone from customer\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/used-purchase-headers",
+							"host": ["{{base_url}}"],
+							"path": ["used-purchase-headers"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('used_purchase_id', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Used Purchase Header",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["used-purchase-headers", "{{used_purchase_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Used Purchase Header",
+					"description": "**Immutability rule:** Only draft purchases can be updated.\n- The `status` field is **not allowed** in the request body.\n- Status can only be changed via `Complete` or `Cancel` endpoints.\n\n**Note:** `purchase_number` has unique validation (ignores current record).",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": 1,\n  \"notes\": \"Updated notes\",\n  \"purchase_number\": \"UPD-2024-001\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["used-purchase-headers", "{{used_purchase_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Used Purchase Header",
+					"description": "**Immutability rule:** Only draft purchases can be deleted.",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["used-purchase-headers", "{{used_purchase_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Complete Used Purchase Header",
+					"description": "**Business flow:**\n1. Validates purchase is in `draft` status\n2. Creates `inventory_items` records for each mobile device (one per unit of quantity)\n3. Creates `stock_movements` for all items\n4. Sets status to `completed` and records `completed_at` timestamp\n\n**After completion:** Purchase becomes immutable.",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/complete",
+							"host": ["{{base_url}}"],
+							"path": ["used-purchase-headers", "{{used_purchase_id}}", "complete"]
+						}
+					}
+				},
+				{
+					"name": "Cancel Used Purchase Header",
+					"description": "**Immutability rule:** Only draft purchases can be cancelled.",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/cancel",
+							"host": ["{{base_url}}"],
+							"path": ["used-purchase-headers", "{{used_purchase_id}}", "cancel"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Used Device Purchase Items",
+			"description": "Purchase items are nested under used device purchase headers.\n\n**Immutability rules:**\n- Items can only be added/updated/deleted while the purchase is **draft**.\n- If the purchase is `completed` or `cancelled`, all mutation requests return `HTTP 400`.\n\n**Item validation:**\n- Only `mobile` products are allowed.\n- Includes device condition fields: battery_health, screen_condition, body_condition, fingerprint_working, face_id_working.\n\n**Typical workflow:**\n1. Create a purchase header (draft)\n2. Add items via `POST /used-purchase-headers/{purchase}/items`\n3. Complete the purchase\n4. The items become read-only",
+			"item": [
+				{
+					"name": "List Used Purchase Items",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items",
+							"host": ["{{base_url}}"],
+							"path": ["used-purchase-headers", "{{used_purchase_id}}", "items"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Used Purchase Item",
+					"description": "Adds a used mobile device item to a draft purchase.\n\n**Condition fields:**\n- `battery_health`: integer 0-100 (battery health percentage)\n- `screen_condition`: e.g., \"Good\", \"Scratched\", \"Cracked\"\n- `body_condition`: e.g., \"Excellent\", \"Worn\", \"Damaged\"\n- `fingerprint_working`: boolean\n- `face_id_working`: boolean",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"unit_price\": 5000.00,\n  \"battery_health\": 85,\n  \"screen_condition\": \"Good\",\n  \"body_condition\": \"Excellent\",\n  \"fingerprint_working\": true,\n  \"face_id_working\": true,\n  \"notes\": \"Original box included\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items",
+							"host": ["{{base_url}}"],
+							"path": ["used-purchase-headers", "{{used_purchase_id}}", "items"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('used_item_id', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Used Purchase Item",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items/{{used_item_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["used-purchase-headers", "{{used_purchase_id}}", "items", "{{used_item_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Used Purchase Item",
+					"description": "**Immutability rule:** Only items in a draft purchase can be updated.\n\nAll fields use `sometimes` validation (partial updates allowed).",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"unit_price\": 4500.00,\n  \"battery_health\": 80,\n  \"screen_condition\": \"Fair\",\n  \"body_condition\": \"Good\",\n  \"fingerprint_working\": true,\n  \"face_id_working\": false,\n  \"notes\": \"Face ID not working\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items/{{used_item_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["used-purchase-headers", "{{used_purchase_id}}", "items", "{{used_item_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Used Purchase Item",
+					"description": "**Immutability rule:** Only items in a draft purchase can be deleted.",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/used-purchase-headers/{{used_purchase_id}}/items/{{used_item_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["used-purchase-headers", "{{used_purchase_id}}", "items", "{{used_item_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Inventory (Read Only)",
 			"description": "Inventory tables are **read-only** APIs.\nNo direct insert/update/delete from controllers.\nInventory changes happen automatically through business services:\n- Purchase Complete\n- Sale\n- Purchase Return\n- Sales Return\n- etc.",
 			"item": [
 				{
@@ -1458,124 +2142,1354 @@
 						}
 					}
 				}
-        ]
-    },
-    {
-        "name": "Sales",
-        "description": "Point-of-Sale operations.\n\n**Single-screen POS workflow:**\n1. Search products via `GET /pos/sales?query=`\n2. Frontend adds items to cart\n3. Send `POST /pos/checkout` to complete\n\n**Validation rules (Checkout):**\n- Items must contain either `product_id` (accessory/spare part) or `inventory_item_id` (mobile).\n- `quantity` is **required** for accessories/spare parts, **optional** for mobiles (defaults to 1).\n- `unit_price` is required for all items.\n- Business rule violations (e.g., insufficient stock) return `HTTP 422`.\n\n**Immutability:** Sales headers and items are read-only after creation.",
-        "item": [
-            {
-                "name": "POS Search Products",
-                "request": {
-                    "method": "GET",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "url": {
-                        "raw": "{{base_url}}/pos/sales?query=samsung",
-                        "host": ["{{base_url}}"],
-                        "path": ["pos", "sales"],
-                        "query": [
-                            {
-                                "key": "query",
-                                "value": "samsung",
-                                "description": "Search term for product name (optional)"
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "name": "POS Checkout",
-                "description": "Completes the entire sale inside one atomic `DB::transaction`.\n\n**Item types:**\n- **Mobile** (`inventory_item_id`): Sets status to `sold`, creates StockMovement with qty=1.\n- **Accessory / Spare Part** (`product_id` + `quantity`): Atomically decrements `inventory_quantities` with stock guard. Throws 422 if insufficient stock.\n\n**Atomic operations:**\n1. Validate all items (stock, product type)\n2. Calculate subtotal, apply discount\n3. Create Sales Header\n4. Create Sales Items\n5. Update inventory (status=sold / quantity decrement)\n6. Create Stock Movements\n7. Return completed invoice",
-                "request": {
-                    "method": "POST",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "body": {
-                        "mode": "raw",
-                        "raw": "{\n  \"customer_id\": 1,\n  \"discount_amount\": 0,\n  \"notes\": \"Walk-in customer\",\n  \"items\": [\n    {\n      \"inventory_item_id\": 1,\n      \"unit_price\": 15000.00\n    },\n    {\n      \"product_id\": 2,\n      \"quantity\": 2,\n      \"unit_price\": 50.00\n    }\n  ]\n}",
-                        "options": {
-                            "raw": {
-                                "language": "json"
-                            }
-                        }
-                    },
-                    "url": {
-                        "raw": "{{base_url}}/pos/checkout",
-                        "host": ["{{base_url}}"],
-                        "path": ["pos", "checkout"]
-                    }
-                },
-                "event": [
-                    {
-                        "listen": "test",
-                        "script": {
-                            "exec": [
-                                "if (pm.response.code === 201) {",
-                                "    var jsonData = pm.response.json();",
-                                "    pm.collectionVariables.set('sale_id', jsonData.data.id);",
-                                "}"
-                            ],
-                            "type": "text/javascript"
-                        }
-                    }
-                ]
-            },
-            {
-                "name": "List Sales Headers",
-                "description": "Returns paginated sales headers with customer info.",
-                "request": {
-                    "method": "GET",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "url": {
-                        "raw": "{{base_url}}/sales-headers",
-                        "host": ["{{base_url}}"],
-                        "path": ["sales-headers"],
-                        "query": [
-                            {
-                                "key": "per_page",
-                                "value": "10",
-                                "description": "Items per page (default: 10)"
-                            }
-                        ]
-                    }
-                }
-            },
-            {
-                "name": "Get Sales Header",
-                "description": "Returns the full sale with:\n- Customer info\n- Creator info (user who processed the sale)\n- Items (product details + inventory_item details)",
-                "request": {
-                    "method": "GET",
-                    "header": [
-                        {
-                            "key": "Accept",
-                            "value": "application/json"
-                        }
-                    ],
-                    "url": {
-                        "raw": "{{base_url}}/sales-headers/{{sale_id}}",
-                        "host": ["{{base_url}}"],
-                        "path": ["sales-headers", "{{sale_id}}"]
-                    }
-                }
-            }
-        ]
-    },
-    {
-        "name": "Health",
+			]
+		},
+		{
+			"name": "Sales",
+			"description": "Point-of-Sale operations.\n\n**Single-screen POS workflow:**\n1. Search products via `GET /pos/sales?query=`\n2. Frontend adds items to cart\n3. Send `POST /pos/checkout` to complete\n\n**Validation rules (Checkout):**\n- Items must contain either `product_id` (accessory/spare part) or `inventory_item_id` (mobile).\n- `quantity` is **required** for accessories/spare parts, **optional** for mobiles (defaults to 1).\n- `unit_price` is required for all items.\n- Business rule violations (e.g., insufficient stock) return `HTTP 422`.\n\n**Immutability:** Sales headers and items are read-only after creation.",
+			"item": [
+				{
+					"name": "POS Search Products",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/pos/sales?query=samsung",
+							"host": ["{{base_url}}"],
+							"path": ["pos", "sales"],
+							"query": [
+								{
+									"key": "query",
+									"value": "samsung",
+									"description": "Search term for product name (optional)"
+								},
+								{
+									"key": "type",
+									"value": "all",
+									"description": "Filter by type: all, new_mobile, used_mobile, accessory, spare_part"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "POS Checkout",
+					"description": "Completes the entire sale inside one atomic `DB::transaction`.\n\n**Item types:**\n- **Mobile** (`inventory_item_id`): Sets status to `sold`, creates StockMovement with qty=1.\n- **Accessory / Spare Part** (`product_id` + `quantity`): Atomically decrements `inventory_quantities` with stock guard. Throws 422 if insufficient stock.\n\n**Atomic operations:**\n1. Validate all items (stock, product type)\n2. Calculate subtotal, apply discount\n3. Create Sales Header\n4. Create Sales Items\n5. Update inventory (status=sold / quantity decrement)\n6. Create Stock Movements\n7. Return completed invoice",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": 1,\n  \"discount_amount\": 0,\n  \"notes\": \"Walk-in customer\",\n  \"items\": [\n    {\n      \"inventory_item_id\": 1,\n      \"unit_price\": 15000.00\n    },\n    {\n      \"product_id\": 2,\n      \"quantity\": 2,\n      \"unit_price\": 50.00\n    }\n  ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/pos/checkout",
+							"host": ["{{base_url}}"],
+							"path": ["pos", "checkout"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('sale_id', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "List Sales Headers",
+					"description": "Returns paginated sales headers with customer info.",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/sales-headers",
+							"host": ["{{base_url}}"],
+							"path": ["sales-headers"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "10",
+									"description": "Items per page (default: 10)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search by invoice number, customer name, or creator name"
+								},
+								{
+									"key": "from_date",
+									"value": "",
+									"description": "Filter from date (Y-m-d)"
+								},
+								{
+									"key": "to_date",
+									"value": "",
+									"description": "Filter to date (Y-m-d)"
+								},
+								{
+									"key": "created_by",
+									"value": "",
+									"description": "Filter by user ID who processed the sale"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Sales Header",
+					"description": "Returns the full sale with:\n- Customer info\n- Creator info (user who processed the sale)\n- Items (product details + inventory_item details)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/sales-headers/{{sale_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["sales-headers", "{{sale_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Sales Returnable",
+			"description": "Read-only endpoints for sales eligible for return.\n\nOnly sales with items that have remaining returnable quantity are shown.\n- Each item's returnable quantity = `quantity_sold - already_returned_qty`",
+			"item": [
+				{
+					"name": "List Sales Returnable",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/sales-returnable",
+							"host": ["{{base_url}}"],
+							"path": ["sales-returnable"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "12",
+									"description": "Items per page (default: 12)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search by invoice number or customer name"
+								},
+								{
+									"key": "customer_id",
+									"value": "",
+									"description": "Filter by customer ID"
+								},
+								{
+									"key": "from_date",
+									"value": "",
+									"description": "Filter from date (Y-m-d)"
+								},
+								{
+									"key": "to_date",
+									"value": "",
+									"description": "Filter to date (Y-m-d)"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Sales Returnable",
+					"description": "Returns detailed returnable items for a specific sale.\n- Includes per-item returnable quantity and pricing",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/sales-returnable/1",
+							"host": ["{{base_url}}"],
+							"path": ["sales-returnable", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Sales Returns",
+			"description": "Sales return management.\n\n**Workflow:**\n1. Look up returnable sales via `/sales-returnable`\n2. Submit a return via `POST /sales-returns`\n3. View returns via `GET /sales-returns` and `GET /sales-returns/{id}`\n\n**Item rules:**\n- Each return item must reference a `sales_item_id` and `product_id`\n- For mobiles: `inventory_item_id` identifies the specific device being returned\n- Returns are processed atomically — stock is adjusted automatically",
+			"item": [
+				{
+					"name": "List Sales Returns",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/sales-returns",
+							"host": ["{{base_url}}"],
+							"path": ["sales-returns"],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "12",
+									"description": "Items per page (default: 12)"
+								},
+								{
+									"key": "search",
+									"value": "",
+									"description": "Search by return number, invoice number, or customer name"
+								},
+								{
+									"key": "customer_id",
+									"value": "",
+									"description": "Filter by customer ID"
+								},
+								{
+									"key": "sales_header_id",
+									"value": "",
+									"description": "Filter by sales header ID"
+								},
+								{
+									"key": "from_date",
+									"value": "",
+									"description": "Filter from date (Y-m-d)"
+								},
+								{
+									"key": "to_date",
+									"value": "",
+									"description": "Filter to date (Y-m-d)"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Sales Return",
+					"description": "Processes a sales return atomically.\n\n**Request validation:**\n- `sales_header_id` is required\n- `items` array must have at least 1 item\n- Each item needs `sales_item_id`, `product_id`, `quantity`, `unit_refund_amount`, `total_refund`\n- For mobiles: include `inventory_item_id`",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"sales_header_id\": 1,\n  \"reason\": \"Customer changed mind\",\n  \"return_date\": \"2024-12-20\",\n  \"items\": [\n    {\n      \"sales_item_id\": 1,\n      \"product_id\": 1,\n      \"inventory_item_id\": 1,\n      \"quantity\": 1,\n      \"unit_refund_amount\": 15000.00,\n      \"total_refund\": 15000.00\n    },\n    {\n      \"sales_item_id\": 2,\n      \"product_id\": 2,\n      \"quantity\": 1,\n      \"unit_refund_amount\": 50.00,\n      \"total_refund\": 50.00\n    }\n  ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/sales-returns",
+							"host": ["{{base_url}}"],
+							"path": ["sales-returns"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('sales_return_id', jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					]
+				},
+				{
+					"name": "Get Sales Return",
+					"description": "Returns a single sales return with items, product details, and inventory item info.",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/sales-returns/{{sales_return_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["sales-returns", "{{sales_return_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Maintenance",
+			"description": "Maintenance management system.\n\n**Workflow:**\n1. Create a **Maintenance Ticket** (`POST /maintenance-tickets`) — atomically creates device + header.\n2. Or manage **devices** and **headers** separately.\n3. Add **operations** (repair actions) and **used parts** (spare parts) to headers.\n4. Update status via `POST /maintenance-headers/{id}/status`.\n\n**Maintenance statuses:** pending, under_repair, waiting_parts, repaired, delivered, cancelled",
+			"item": [
+				{
+					"name": "Maintenance Tickets",
+					"item": [
+						{
+							"name": "Create Maintenance Ticket",
+							"description": "Atomically creates a maintenance device (or uses existing) and a maintenance header in one request.\n\nIf `maintenance_device_id` is provided, uses existing device.\nOtherwise, creates a new device with: `device_type`, `brand`, `model`, `serial_number`, `color`, `condition_notes`.\n\n**Validation:**\n- `device_type` is required when `maintenance_device_id` is not provided\n- `problem_description` is required\n- `received_date` is required",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"device_type\": \"Smartphone\",\n  \"brand\": \"Samsung\",\n  \"model\": \"Galaxy S24\",\n  \"serial_number\": \"SN123456789\",\n  \"color\": \"Black\",\n  \"condition_notes\": \"Scratches on screen, body in good condition\",\n  \"problem_description\": \"Phone not charging, battery drains quickly\",\n  \"received_date\": \"2024-12-01\",\n  \"delivery_date\": \"2024-12-10\",\n  \"advance_payment\": 200.00,\n  \"notes\": \"Customer requested express service\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance-tickets",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-tickets"]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('device_id', jsonData.data.maintenance_device_id);",
+											"    pm.collectionVariables.set('maintenance_id', jsonData.data.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Maintenance Devices",
+					"item": [
+						{
+							"name": "List Maintenance Devices",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/maintenance-devices",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-devices"],
+									"query": [
+										{
+											"key": "per_page",
+											"value": "10",
+											"description": "Items per page (default: 10)"
+										},
+										{
+											"key": "search",
+											"value": "",
+											"description": "Search by serial number or product name"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Create Maintenance Device",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"product_id\": 1,\n  \"device_type\": \"Smartphone\",\n  \"brand\": \"Apple\",\n  \"model\": \"iPhone 15\",\n  \"serial_number\": \"IMEI987654321\",\n  \"color\": \"Silver\",\n  \"condition_notes\": \"Minor scratches on back\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance-devices",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-devices"]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('device_id', jsonData.data.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							]
+						},
+						{
+							"name": "Get Maintenance Device",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/maintenance-devices/{{device_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-devices", "{{device_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Update Maintenance Device",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"device_type\": \"Tablet\",\n  \"condition_notes\": \"Updated condition\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance-devices/{{device_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-devices", "{{device_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Delete Maintenance Device",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/maintenance-devices/{{device_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-devices", "{{device_id}}"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Maintenance Headers",
+					"item": [
+						{
+							"name": "List Maintenance Headers",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers"],
+									"query": [
+										{
+											"key": "per_page",
+											"value": "12",
+											"description": "Items per page (default: 12)"
+										},
+										{
+											"key": "search",
+											"value": "",
+											"description": "Search by ticket number, customer name, or serial number"
+										},
+										{
+											"key": "status",
+											"value": "",
+											"description": "Filter by status (pending, under_repair, waiting_parts, repaired, delivered, cancelled)"
+										},
+										{
+											"key": "customer_id",
+											"value": "",
+											"description": "Filter by customer ID"
+										},
+										{
+											"key": "from_date",
+											"value": "",
+											"description": "Filter from received date (Y-m-d)"
+										},
+										{
+											"key": "to_date",
+											"value": "",
+											"description": "Filter to received date (Y-m-d)"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Maintenance Header",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Update Maintenance Header",
+							"description": "**Immutability rule:** Cannot update headers that are `delivered` or `cancelled`.",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"problem_description\": \"Updated: Phone not charging and screen flickering\",\n  \"notes\": \"Customer also mentioned screen issue\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Delete Maintenance Header",
+							"description": "**Immutability rule:** Only `pending` headers can be deleted.",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Update Maintenance Status",
+							"description": "Updates the status of a maintenance header.\n\n**Allowed statuses:** pending, under_repair, waiting_parts, repaired, delivered, cancelled\n\nWhen changing to `delivered`, `delivery_date` and `paid_amount` can be provided.",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"status\": \"under_repair\",\n  \"delivery_date\": null,\n  \"paid_amount\": null\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}/status",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}", "status"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Maintenance Operations",
+					"description": "Operations are nested under maintenance headers.\n- Each operation represents a repair action performed.\n- Operations can only be added/updated while the header is not delivered/cancelled.",
+					"item": [
+						{
+							"name": "List Maintenance Operations",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}/operations",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}", "operations"]
+								}
+							}
+						},
+						{
+							"name": "Create Maintenance Operation",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"description\": \"Replaced charging port\",\n  \"operation_date\": \"2024-12-02\",\n  \"technician\": \"Ahmed\",\n  \"cost\": 150.00,\n  \"notes\": \"Used original Samsung part\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}/operations",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}", "operations"]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('operation_id', jsonData.data.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							]
+						},
+						{
+							"name": "Get Maintenance Operation",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}/operations/{{operation_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}", "operations", "{{operation_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Update Maintenance Operation",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"description\": \"Replaced charging port and battery\",\n  \"cost\": 250.00\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}/operations/{{operation_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}", "operations", "{{operation_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Delete Maintenance Operation",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}/operations/{{operation_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}", "operations", "{{operation_id}}"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Maintenance Used Parts",
+					"description": "Used parts are nested under maintenance headers.\n- Only `spare_part` products are allowed.\n- Parts can only be added/updated while the header is not delivered/cancelled.",
+					"item": [
+						{
+							"name": "List Maintenance Used Parts",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}/used-parts",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}", "used-parts"]
+								}
+							}
+						},
+						{
+							"name": "Create Maintenance Used Part",
+							"description": "Adds a spare part used in maintenance.\n\n**Validation:**\n- Only `spare_part` type products are allowed\n- `quantity` must be > 0\n- Uses product's current cost price automatically",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"product_id\": 1,\n  \"quantity\": 2\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}/used-parts",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}", "used-parts"]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('part_id', jsonData.data.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							]
+						},
+						{
+							"name": "Get Maintenance Used Part",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}/used-parts/{{part_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}", "used-parts", "{{part_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Update Maintenance Used Part",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"quantity\": 3\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}/used-parts/{{part_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}", "used-parts", "{{part_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Delete Maintenance Used Part",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/maintenance-headers/{{maintenance_id}}/used-parts/{{part_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["maintenance-headers", "{{maintenance_id}}", "used-parts", "{{part_id}}"]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Salary",
+			"description": "Salary management system.\n\n**Salary Assignment:**\n- Each user can have one active salary assignment\n- `base_salary` defines the base salary amount\n\n**Salary Payment:**\n- Payments are created in `draft` status\n- Items (earnings/deductions) are added via `/salary-payments/{payment}/items`\n- Use `confirm` to finalize the payment\n- `cancel` only works for draft payments\n\n**Salary Payment Item Types:**\n- `base_salary` - Base salary\n- `overtime` - Overtime pay\n- `bonus` - Bonus\n- `commission` - Commission\n- `deduction` - Deduction (subtracted)\n- `advance_repayment` - Advance repayment (subtracted)\n- `adjustment` - Adjustment",
+			"item": [
+				{
+					"name": "Salary Assignments",
+					"item": [
+						{
+							"name": "List Salary Assignments",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/salary-assignments",
+									"host": ["{{base_url}}"],
+									"path": ["salary-assignments"],
+									"query": [
+										{
+											"key": "per_page",
+											"value": "20",
+											"description": "Items per page (default: 20, max: 100)"
+										},
+										{
+											"key": "user_id",
+											"value": "",
+											"description": "Filter by user ID"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Create Salary Assignment",
+							"description": "Assigns a base salary to a user.\n\n**Validation:**\n- `user_id` is required and must be unique (a user can only have one assignment)\n- `base_salary` must be >= 0",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"user_id\": 1,\n  \"base_salary\": 5000.00,\n  \"reason\": \"Monthly salary assignment\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/salary-assignments",
+									"host": ["{{base_url}}"],
+									"path": ["salary-assignments"]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('salary_assignment_id', jsonData.data.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							]
+						},
+						{
+							"name": "Get Salary Assignment",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/salary-assignments/{{salary_assignment_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["salary-assignments", "{{salary_assignment_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Update Salary Assignment",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"base_salary\": 5500.00,\n  \"reason\": \"Salary increase\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/salary-assignments/{{salary_assignment_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["salary-assignments", "{{salary_assignment_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Delete Salary Assignment",
+							"description": "**Immutability rule:** Cannot delete if there are payments linked to this assignment.",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/salary-assignments/{{salary_assignment_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["salary-assignments", "{{salary_assignment_id}}"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Salary Payments",
+					"item": [
+						{
+							"name": "List Salary Payments",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/salary-payments",
+									"host": ["{{base_url}}"],
+									"path": ["salary-payments"],
+									"query": [
+										{
+											"key": "per_page",
+											"value": "20",
+											"description": "Items per page (default: 20, max: 100)"
+										},
+										{
+											"key": "user_id",
+											"value": "",
+											"description": "Filter by user ID"
+										},
+										{
+											"key": "status",
+											"value": "",
+											"description": "Filter by status (draft, confirmed, cancelled)"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Create Salary Payment",
+							"description": "Creates a draft salary payment for a user.\n\n**Workflow:**\n1. Create payment (draft)\n2. Add items via `/salary-payments/{payment}/items`\n3. Confirm the payment\nThe `notes` field is optional.",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"user_id\": 1,\n  \"notes\": \"December 2024 salary\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/salary-payments",
+									"host": ["{{base_url}}"],
+									"path": ["salary-payments"]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('salary_payment_id', jsonData.data.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							]
+						},
+						{
+							"name": "Get Salary Payment",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/salary-payments/{{salary_payment_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["salary-payments", "{{salary_payment_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Update Salary Payment",
+							"description": "**Immutability rule:** Only draft payments can be updated.",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"notes\": \"December 2024 salary - updated\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/salary-payments/{{salary_payment_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["salary-payments", "{{salary_payment_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Delete (Cancel) Salary Payment",
+							"description": "**Immutability rule:** Only draft payments can be cancelled.\n\nSets status to `cancelled`.",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/salary-payments/{{salary_payment_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["salary-payments", "{{salary_payment_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Confirm Salary Payment",
+							"description": "Confirms a draft salary payment, marking it as finalized.",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/salary-payments/{{salary_payment_id}}/confirm",
+									"host": ["{{base_url}}"],
+									"path": ["salary-payments", "{{salary_payment_id}}", "confirm"]
+								}
+							}
+						},
+						{
+							"name": "Cancel Salary Payment",
+							"description": "Cancels a draft salary payment via the service layer.",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/salary-payments/{{salary_payment_id}}/cancel",
+									"host": ["{{base_url}}"],
+									"path": ["salary-payments", "{{salary_payment_id}}", "cancel"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Salary Payment Items",
+					"description": "Items are nested under salary payments.\n\n**Item types:** `base_salary`, `overtime`, `bonus`, `commission`, `deduction`, `advance_repayment`, `adjustment`\n\n**Immutability rules:**\n- Items can only be added/updated/deleted while the payment is **draft**.\n- `base_salary` type items cannot have their type changed.",
+					"item": [
+						{
+							"name": "List Salary Payment Items",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/salary-payments/{{salary_payment_id}}/items",
+									"host": ["{{base_url}}"],
+									"path": ["salary-payments", "{{salary_payment_id}}", "items"]
+								}
+							}
+						},
+						{
+							"name": "Create Salary Payment Item",
+							"description": "Adds an item to a draft salary payment.\n\n**Item types:**\n- `base_salary` / `overtime` / `bonus` / `commission` — additions\n- `deduction` / `advance_repayment` — subtractions\n- `adjustment` — can be positive or negative",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"type\": \"base_salary\",\n  \"label\": \"Base Salary\",\n  \"amount\": 5000.00\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/salary-payments/{{salary_payment_id}}/items",
+									"host": ["{{base_url}}"],
+									"path": ["salary-payments", "{{salary_payment_id}}", "items"]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    pm.collectionVariables.set('salary_item_id', jsonData.data.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							]
+						},
+						{
+							"name": "Get Salary Payment Item",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/salary-payments/{{salary_payment_id}}/items/{{salary_item_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["salary-payments", "{{salary_payment_id}}", "items", "{{salary_item_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Update Salary Payment Item",
+							"description": "**Immutability rule:**\n- Only items in draft payments can be updated.\n- `base_salary` type items cannot change their type.",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"amount\": 5500.00\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/salary-payments/{{salary_payment_id}}/items/{{salary_item_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["salary-payments", "{{salary_payment_id}}", "items", "{{salary_item_id}}"]
+								}
+							}
+						},
+						{
+							"name": "Delete Salary Payment Item",
+							"description": "**Immutability rule:** Only items in draft payments can be deleted.\n\nRecalculates the payment total after deletion.",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/salary-payments/{{salary_payment_id}}/items/{{salary_item_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["salary-payments", "{{salary_payment_id}}", "items", "{{salary_item_id}}"]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Health",
 			"item": [
 				{
 					"name": "Hello",
