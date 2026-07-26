@@ -22,6 +22,7 @@ use App\Http\Controllers\MaintenanceTicketController;
 use App\Http\Controllers\MaintenanceOperationController;
 use App\Http\Controllers\MaintenanceUsedPartController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SalaryAssignmentController;
@@ -245,7 +246,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/salary-payments/{payment}/items/{item}', [SalaryPaymentItemController::class, 'show']);
     Route::put('/salary-payments/{payment}/items/{item}', [SalaryPaymentItemController::class, 'update']);
     Route::delete('/salary-payments/{payment}/items/{item}', [SalaryPaymentItemController::class, 'destroy']);
-
+    
+    
+    // Report routes
+    Route::prefix('reports')->group(function () {
+        Route::get('/sales', [ReportController::class, 'sales']);
+        Route::get('/purchases', [ReportController::class, 'purchases']);
+        Route::get('/maintenance', [ReportController::class, 'maintenance']);
+        Route::get('/expenses', [ReportController::class, 'expenses']);
+        Route::get('/inventory', [ReportController::class, 'inventory']);
+        Route::get('/profit-loss', [ReportController::class, 'profitLoss']);
+        Route::get('/salaries', [ReportController::class, 'salaries']);
+    });
+    
     // Admin-only routes
     Route::middleware('admin')->prefix('admin')->group(function () {
         Route::post("/create-user", [AuthController::class, 'createUser']);

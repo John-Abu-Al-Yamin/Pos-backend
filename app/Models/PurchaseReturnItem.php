@@ -13,12 +13,14 @@ class PurchaseReturnItem extends Model
         'inventory_item_id',
         'quantity',
         'unit_refund_amount',
+        'unit_cost',
         'total_refund',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:2',
         'unit_refund_amount' => 'decimal:2',
+        'unit_cost' => 'decimal:2',
         'total_refund' => 'decimal:2',
     ];
 

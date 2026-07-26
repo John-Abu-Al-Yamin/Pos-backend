@@ -8,6 +8,7 @@ use App\Models\PurchaseHeader;
 use App\Models\PurchaseReturnHeader;
 use App\Models\PurchaseReturnItem;
 use App\Models\StockMovement;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseReturnService
@@ -19,6 +20,10 @@ class PurchaseReturnService
             $purchase = PurchaseHeader::with('items.product')
                 ->lockForUpdate()
                 ->findOrFail($data['purchase_header_id']);
+
+            if (! $purchase->isCompleted()) {
+                throw new \DomainException('Only completed purchases can be returned.');
+            }
 
             $returnedQtyByItem = PurchaseReturnItem::whereHas(
                 'purchaseReturnHeader'
@@ -41,6 +46,13 @@ class PurchaseReturnService
 
                 if ((float) $item['unit_refund_amount'] < 0) {
                     throw new \RuntimeException('Refund amount cannot be negative.');
+                }
+
+                $unitRefundAmount = round((float) $item['unit_refund_amount'], 2);
+                $allowedUnitRefundAmount = round((float) $purchaseItem->unit_price, 2);
+
+                if ($unitRefundAmount > $allowedUnitRefundAmount) {
+                    throw new \RuntimeException('Refund amount exceeds original purchase unit cost.');
                 }
 
                 if (isset($item['inventory_item_id'])) {
@@ -77,13 +89,13 @@ class PurchaseReturnService
                         'product_id' => $purchaseItem->product_id,
                         'inventory_item_id' => $inventoryItem->id,
                         'quantity' => 1,
-                        'unit_refund_amount' => (float) $item['unit_refund_amount'],
-                        'total_refund' => (float) $item['unit_refund_amount'],
+                        'unit_refund_amount' => $unitRefundAmount,
+                        'total_refund' => $unitRefundAmount,
                         'unit_cost' => (float) $inventoryItem->cost_price,
                         'inventory_item' => $inventoryItem,
                     ];
 
-                    $totalRefund += (float) $item['unit_refund_amount'];
+                    $totalRefund += $unitRefundAmount;
                 } else {
                     $product = $purchaseItem->product;
 
@@ -112,13 +124,13 @@ class PurchaseReturnService
                         'product_id' => $product->id,
                         'inventory_item_id' => null,
                         'quantity' => (int) $item['quantity'],
-                        'unit_refund_amount' => (float) $item['unit_refund_amount'],
-                        'total_refund' => (int) $item['quantity'] * (float) $item['unit_refund_amount'],
+                        'unit_refund_amount' => $unitRefundAmount,
+                        'total_refund' => round((int) $item['quantity'] * $unitRefundAmount, 2),
                         'unit_cost' => (float) $purchaseItem->unit_price,
                         'inventory_quantity' => $inventoryQuantity,
                     ];
 
-                    $totalRefund += (int) $item['quantity'] * (float) $item['unit_refund_amount'];
+                    $totalRefund += round((int) $item['quantity'] * $unitRefundAmount, 2);
                 }
             }
 
@@ -129,7 +141,7 @@ class PurchaseReturnService
                 'user_id' => auth()->id(),
                 'total_refund_amount' => $totalRefund,
                 'reason' => $data['reason'] ?? null,
-                'return_date' => $data['return_date'] ?? now(),
+                'return_date' => Carbon::parse($data['return_date'] ?? now())->toDateString(),
             ]);
 
             foreach ($preparedItems as $preparedItem) {
@@ -141,6 +153,7 @@ class PurchaseReturnService
                     'inventory_item_id' => $preparedItem['inventory_item_id'],
                     'quantity' => $preparedItem['quantity'],
                     'unit_refund_amount' => $preparedItem['unit_refund_amount'],
+                    'unit_cost' => $preparedItem['unit_cost'],
                     'total_refund' => $preparedItem['total_refund'],
                 ]);
 

@@ -8,6 +8,7 @@ use App\Models\SalesHeader;
 use App\Models\SalesReturnHeader;
 use App\Models\SalesReturnItem;
 use App\Models\StockMovement;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class SalesReturnService
@@ -50,6 +51,8 @@ class SalesReturnService
                     throw new \RuntimeException('Refund amount cannot be negative.');
                 }
 
+                $unitRefundAmount = $this->allowedUnitRefundAmount($sale, $salesItem);
+
                 if (isset($item['inventory_item_id'])) {
                     $inventoryItem = InventoryItem::lockForUpdate()->findOrFail($item['inventory_item_id']);
 
@@ -67,13 +70,13 @@ class SalesReturnService
                         'product_id' => $salesItem->product_id,
                         'inventory_item_id' => $inventoryItem->id,
                         'quantity' => 1,
-                        'unit_refund_amount' => (float) $item['unit_refund_amount'],
-                        'total_refund' => (float) $item['unit_refund_amount'],
+                        'unit_refund_amount' => $unitRefundAmount,
+                        'total_refund' => $unitRefundAmount,
                         'unit_cost' => (float) $inventoryItem->cost_price,
                         'inventory_item' => $inventoryItem,
                     ];
 
-                    $totalRefund += (float) $item['unit_refund_amount'];
+                    $totalRefund += $unitRefundAmount;
                 } else {
                     $product = $salesItem->product;
 
@@ -91,13 +94,13 @@ class SalesReturnService
                         'product_id' => $product->id,
                         'inventory_item_id' => null,
                         'quantity' => (int) $item['quantity'],
-                        'unit_refund_amount' => (float) $item['unit_refund_amount'],
-                        'total_refund' => (int) $item['quantity'] * (float) $item['unit_refund_amount'],
+                        'unit_refund_amount' => $unitRefundAmount,
+                        'total_refund' => round((int) $item['quantity'] * $unitRefundAmount, 2),
                         'unit_cost' => (float) $salesItem->unit_cost,
                         'inventory_quantity' => $inventoryQuantity,
                     ];
 
-                    $totalRefund += (int) $item['quantity'] * (float) $item['unit_refund_amount'];
+                    $totalRefund += round((int) $item['quantity'] * $unitRefundAmount, 2);
                 }
             }
 
@@ -108,7 +111,7 @@ class SalesReturnService
                 'user_id' => auth()->id(),
                 'total_refund_amount' => $totalRefund,
                 'reason' => $data['reason'] ?? null,
-                'return_date' => $data['return_date'] ?? now(),
+                'return_date' => Carbon::parse($data['return_date'] ?? now())->toDateString(),
             ]);
 
             foreach ($preparedItems as $preparedItem) {
@@ -120,6 +123,7 @@ class SalesReturnService
                     'inventory_item_id' => $preparedItem['inventory_item_id'],
                     'quantity' => $preparedItem['quantity'],
                     'unit_refund_amount' => $preparedItem['unit_refund_amount'],
+                    'unit_cost' => $preparedItem['unit_cost'],
                     'total_refund' => $preparedItem['total_refund'],
                 ]);
 
@@ -164,5 +168,26 @@ class SalesReturnService
     private function generateReturnNumber(): string
     {
         return 'SR-' . date('YmdHis') . str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
+    }
+
+    private function allowedUnitRefundAmount(SalesHeader $sale, $salesItem): float
+    {
+        $quantity = (float) $salesItem->quantity;
+
+        if ($quantity <= 0) {
+            return 0;
+        }
+
+        $lineTotal = (float) $salesItem->total_price;
+        $subtotal = (float) $sale->subtotal;
+        $discount = (float) $sale->discount_amount;
+
+        $lineDiscount = $subtotal > 0
+            ? $discount * ($lineTotal / $subtotal)
+            : 0;
+
+        $lineNetAmount = max(0, $lineTotal - $lineDiscount);
+
+        return round($lineNetAmount / $quantity, 2);
     }
 }

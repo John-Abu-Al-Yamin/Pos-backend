@@ -14,6 +14,7 @@ class MaintenanceHeader extends Model
         'problem_description',
         'received_date',
         'delivery_date',
+        'repaired_at',
         'total_cost',
         'advance_payment',
         'created_by',
@@ -25,6 +26,7 @@ class MaintenanceHeader extends Model
         'advance_payment' => 'decimal:2',
         'received_date' => 'date',
         'delivery_date' => 'date',
+        'repaired_at' => 'datetime',
     ];
 
     protected $appends = ['labor_cost', 'parts_total', 'grand_total', 'remaining_amount'];

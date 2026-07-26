@@ -18,7 +18,7 @@ class ExpenseService
 
             $expense->update([
                 'status' => 'paid',
-                'payment_date' => now(),
+                'payment_date' => now()->toDateString(),
             ]);
 
             return $expense->fresh();

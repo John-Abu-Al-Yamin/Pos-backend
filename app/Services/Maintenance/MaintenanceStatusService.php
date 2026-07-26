@@ -62,6 +62,10 @@ class MaintenanceStatusService
                 }
             }
 
+            if ($newStatus === 'repaired' && $header->repaired_at === null) {
+                $data['repaired_at'] = now();
+            }
+
             $header->update($data);
 
             return $header->fresh();

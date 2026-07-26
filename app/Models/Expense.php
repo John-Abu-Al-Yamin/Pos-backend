@@ -10,6 +10,8 @@ class Expense extends Model
         'expense_category',
         'amount',
         'expense_date',
+        'payment_date',
+        'status',
         'notes',
     ];
 

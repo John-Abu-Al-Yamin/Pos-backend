@@ -16,7 +16,14 @@ class PurchaseReturnHeaderController extends Controller
 
     public function store(StorePurchaseReturnRequest $request)
     {
-        $return = $this->purchaseReturnService->processReturn($request->validated());
+        try {
+            $return = $this->purchaseReturnService->processReturn($request->validated());
+        } catch (\DomainException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 422
+            );
+        }
 
         return response()->json([
             'message' => 'Purchase return completed successfully',
