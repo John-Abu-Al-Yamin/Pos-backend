@@ -29,6 +29,13 @@ class InventoryItemController extends Controller
                 $q->where('status', $request->status))
             ->when($request->filled('source'), fn($q) =>
                 $q->where('source', $request->source))
+            ->when($request->filled('brand_id'), fn($q) =>
+                $q->whereHas('product', fn($q) =>
+                    $q->where('brand_id', $request->brand_id)))
+            ->when($request->filled('min_cost_price'), fn($q) =>
+                $q->where('cost_price', '>=', (float) $request->min_cost_price))
+            ->when($request->filled('max_cost_price'), fn($q) =>
+                $q->where('cost_price', '<=', (float) $request->max_cost_price))
             ->when($request->filled('from_date'), fn($q) =>
                 $q->whereDate('created_at', '>=', $request->from_date))
             ->when($request->filled('to_date'), fn($q) =>

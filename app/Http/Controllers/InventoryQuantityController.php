@@ -34,6 +34,14 @@ class InventoryQuantityController extends Controller
                         ->select('inventory_quantities.*');
                 }
             })
+            ->when($request->filled('min_quantity'), fn($q) =>
+                $q->where('quantity', '>=', (int) $request->min_quantity))
+            ->when($request->filled('max_quantity'), fn($q) =>
+                $q->where('quantity', '<=', (int) $request->max_quantity))
+            ->when($request->filled('from_date'), fn($q) =>
+                $q->whereDate('created_at', '>=', $request->from_date))
+            ->when($request->filled('to_date'), fn($q) =>
+                $q->whereDate('created_at', '<=', $request->to_date))
             ->paginate($perPage);
 
         return ApiResponse::success(
