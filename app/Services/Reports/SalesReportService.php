@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Models\SalesHeader;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 
@@ -283,6 +284,30 @@ class SalesReportService
             'total_refund' => (float) $returns->total_refund,
             'return_transaction_count' => (int) $returns->return_transaction_count,
         ];
+    }
+
+    public function getRecentSales(int $limit = 5, bool $includeFinancials = true): array
+    {
+        return SalesHeader::with('customer:id,name', 'createdBy:id,name')
+            ->latest()
+            ->limit($limit)
+            ->get(['id', 'invoice_number', 'customer_id', 'total_amount', 'created_by', 'created_at'])
+            ->map(function (SalesHeader $sale) use ($includeFinancials) {
+                $item = [
+                    'id' => $sale->id,
+                    'invoice_number' => $sale->invoice_number,
+                    'customer_name' => $sale->customer?->name,
+                    'created_by' => $sale->createdBy?->name,
+                    'created_at' => $sale->created_at?->toIso8601String(),
+                ];
+
+                if ($includeFinancials) {
+                    $item['total_amount'] = (float) $sale->total_amount;
+                }
+
+                return $item;
+            })
+            ->toArray();
     }
 
     private function netSalesMovementQuery(

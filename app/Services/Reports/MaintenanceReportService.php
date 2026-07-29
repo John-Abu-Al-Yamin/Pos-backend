@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Models\MaintenanceHeader;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 
@@ -232,6 +233,60 @@ class MaintenanceReportService
                 'total_revenue' => (float) $item->total_revenue,
             ];
         })->toArray();
+    }
+
+    public function getOperationalSummary(Carbon $dateFrom, Carbon $dateTo): array
+    {
+        $statuses = DB::table('maintenance_headers')
+            ->selectRaw('status, COUNT(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->map(fn ($count) => (int) $count)
+            ->toArray();
+
+        return [
+            'status_counts' => $statuses,
+            'pending' => (int) ($statuses['pending'] ?? 0),
+            'under_repair' => (int) ($statuses['under_repair'] ?? 0),
+            'waiting_parts' => (int) ($statuses['waiting_parts'] ?? 0),
+            'repaired_not_delivered' => (int) ($statuses['repaired'] ?? 0),
+            'received_in_period' => (int) DB::table('maintenance_headers')
+                ->whereBetween('received_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
+                ->where('status', '!=', 'cancelled')
+                ->count(),
+            'delivered_in_period' => (int) DB::table('maintenance_headers')
+                ->whereBetween('delivery_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
+                ->where('status', 'delivered')
+                ->count(),
+        ];
+    }
+
+    public function getRecentTickets(int $limit = 5, bool $includeFinancials = true): array
+    {
+        return MaintenanceHeader::with('customer:id,name', 'maintenanceDevice:id,device_type,brand,model')
+            ->latest()
+            ->limit($limit)
+            ->get(['id', 'ticket_number', 'customer_id', 'maintenance_device_id', 'status', 'total_cost', 'created_at'])
+            ->map(function (MaintenanceHeader $ticket) use ($includeFinancials) {
+                $item = [
+                    'id' => $ticket->id,
+                    'ticket_number' => $ticket->ticket_number,
+                    'customer_name' => $ticket->customer?->name,
+                    'device' => $ticket->maintenanceDevice ? trim(implode(' ', array_filter([
+                        $ticket->maintenanceDevice->brand,
+                        $ticket->maintenanceDevice->model,
+                    ]))) ?: $ticket->maintenanceDevice->device_type : null,
+                    'status' => $ticket->status,
+                    'created_at' => $ticket->created_at?->toIso8601String(),
+                ];
+
+                if ($includeFinancials) {
+                    $item['total_cost'] = (float) $ticket->total_cost;
+                }
+
+                return $item;
+            })
+            ->toArray();
     }
 
     private function applyStatusFilter($query, ?string $status): void

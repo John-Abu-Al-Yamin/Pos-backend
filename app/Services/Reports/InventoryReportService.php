@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Models\StockMovement;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 
@@ -332,5 +333,23 @@ class InventoryReportService
             }
         }
         return $net;
+    }
+
+    public function getRecentStockMovements(int $limit = 5): array
+    {
+        return StockMovement::with('product:id,name', 'user:id,name')
+            ->latest()
+            ->limit($limit)
+            ->get(['id', 'product_id', 'movement_type', 'movement', 'quantity', 'created_by', 'created_at'])
+            ->map(fn (StockMovement $movement) => [
+                'id' => $movement->id,
+                'product_name' => $movement->product?->name,
+                'movement_type' => $movement->movement_type,
+                'direction' => $movement->movement,
+                'quantity' => (float) $movement->quantity,
+                'created_by' => $movement->user?->name,
+                'created_at' => $movement->created_at?->toIso8601String(),
+            ])
+            ->toArray();
     }
 }

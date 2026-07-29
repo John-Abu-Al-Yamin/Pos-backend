@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Models\Expense;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 
@@ -213,6 +214,47 @@ class ExpenseReportService
                 'count' => (int) $item->count,
             ];
         })->toArray();
+    }
+
+    public function getOperationalSummary(Carbon $dateFrom, Carbon $dateTo): array
+    {
+        $pending = DB::table('expenses')
+            ->where('status', 'pending')
+            ->selectRaw('COUNT(*) as count, COALESCE(SUM(amount), 0) as amount')
+            ->first();
+
+        return [
+            'pending_count' => (int) $pending->count,
+            'pending_amount' => (float) $pending->amount,
+            'paid_in_period' => (int) DB::table('expenses')
+                ->where('status', 'paid')
+                ->where('payment_date', '>=', $dateFrom->toDateString())
+                ->where('payment_date', '<', $dateTo->copy()->addDay()->toDateString())
+                ->count(),
+        ];
+    }
+
+    public function getRecentExpenses(int $limit = 5, bool $includeFinancials = true): array
+    {
+        return Expense::latest()
+            ->limit($limit)
+            ->get(['id', 'expense_category', 'amount', 'status', 'expense_date', 'created_at'])
+            ->map(function (Expense $expense) use ($includeFinancials) {
+                $item = [
+                    'id' => $expense->id,
+                    'expense_category' => $expense->expense_category,
+                    'status' => $expense->status,
+                    'expense_date' => $expense->expense_date?->toDateString(),
+                    'created_at' => $expense->created_at?->toIso8601String(),
+                ];
+
+                if ($includeFinancials) {
+                    $item['amount'] = (float) $expense->amount;
+                }
+
+                return $item;
+            })
+            ->toArray();
     }
 
     private function dateColumnForBasis(string $basis): string

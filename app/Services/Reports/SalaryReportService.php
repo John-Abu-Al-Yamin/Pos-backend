@@ -56,6 +56,15 @@ class SalaryReportService
         ];
     }
 
+    public function getOperationalSummary(): array
+    {
+        return [
+            'draft_count' => (int) DB::table('salary_payments')
+                ->where('status', 'draft')
+                ->count(),
+        ];
+    }
+
     private function getByEmployee(Carbon $dateFrom, Carbon $dateTo, ?string $status, ?int $userId): array
     {
         return $this->basePaymentQuery($dateFrom, $dateTo, $status, $userId)

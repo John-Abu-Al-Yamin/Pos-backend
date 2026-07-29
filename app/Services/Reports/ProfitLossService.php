@@ -2,7 +2,6 @@
 
 namespace App\Services\Reports;
 
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 
 class ProfitLossService
@@ -12,6 +11,7 @@ class ProfitLossService
         private PurchaseReportService $purchaseReport,
         private MaintenanceReportService $maintenanceReport,
         private ExpenseReportService $expenseReport,
+        private SalaryReportService $salaryReport,
     ) {}
 
     public function generate(array $filters): array
@@ -23,17 +23,37 @@ class ProfitLossService
         $purchaseSummary = $this->purchaseReport->getSummary($dateFrom, $dateTo);
         $maintenanceSummary = $this->maintenanceReport->getSummary($dateFrom, $dateTo);
         $expenseSummary = $this->expenseReport->getSummary($dateFrom, $dateTo, null, null, 'cash');
-        $salarySummary = $this->getSalarySummary($dateFrom, $dateTo);
+        $salarySummary = $this->salaryReport->getSummary($dateFrom, $dateTo, 'confirmed');
 
+        return $this->generateFromSummaries(
+            $dateFrom,
+            $dateTo,
+            $salesSummary,
+            $purchaseSummary,
+            $maintenanceSummary,
+            $expenseSummary,
+            $salarySummary,
+        );
+    }
+
+    public function generateFromSummaries(
+        Carbon $dateFrom,
+        Carbon $dateTo,
+        array $salesSummary,
+        array $purchaseSummary,
+        array $maintenanceSummary,
+        array $expenseSummary,
+        array $salarySummary,
+    ): array {
         $salesRevenue = $salesSummary['net_revenue'];
         $cogs = $salesSummary['total_cogs'];
         $maintenanceProfit = $maintenanceSummary['gross_profit'];
         $maintenanceRevenue = $maintenanceSummary['total_revenue'];
         $expenses = $expenseSummary['paid_amount'];
-        $salaries = $salarySummary['total_confirmed'];
+        $salaries = $salarySummary['total_confirmed'] ?? $salarySummary['confirmed_amount'];
 
         $grossProfit = $salesRevenue - $cogs;
-        $netProfit = $salesRevenue - $cogs - $expenses - $salaries + $maintenanceProfit;
+        $netProfit = $this->calculateNetProfit($salesRevenue, $cogs, $expenses, $salaries, $maintenanceProfit);
         $totalOperatingExpenses = $expenses + $salaries;
         $formulaRevenue = $salesRevenue;
         $operatingProfitBeforeExpenses = $salesRevenue - $cogs + $maintenanceProfit;
@@ -87,21 +107,13 @@ class ProfitLossService
         ];
     }
 
-    private function getSalarySummary(Carbon $dateFrom, Carbon $dateTo): array
-    {
-        $salaries = DB::table('salary_payments')
-            ->where('status', 'confirmed')
-            ->where('payment_date', '>=', $dateFrom->toDateString())
-            ->where('payment_date', '<', $dateTo->copy()->addDay()->toDateString())
-            ->selectRaw('
-                COALESCE(SUM(total_amount), 0) as total_confirmed,
-                COUNT(*) as payment_count
-            ')
-            ->first();
-
-        return [
-            'total_confirmed' => (float) $salaries->total_confirmed,
-            'payment_count' => (int) $salaries->payment_count,
-        ];
+    public function calculateNetProfit(
+        float $salesRevenue,
+        float $cogs,
+        float $expenses,
+        float $salaries,
+        float $maintenanceProfit,
+    ): float {
+        return round($salesRevenue - $cogs - $expenses - $salaries + $maintenanceProfit, 2);
     }
 }

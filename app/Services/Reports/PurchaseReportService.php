@@ -184,6 +184,19 @@ class PurchaseReportService
         ];
     }
 
+    public function getOperationalSummary(Carbon $dateFrom, Carbon $dateTo): array
+    {
+        return [
+            'draft_count' => (int) DB::table('purchase_headers')
+                ->where('status', 'draft')
+                ->count(),
+            'completed_in_period' => (int) DB::table('purchase_headers')
+                ->where('status', 'completed')
+                ->whereBetween('completed_at', [$dateFrom, $dateTo])
+                ->count(),
+        ];
+    }
+
     private function netPurchaseMovementQuery(
         Carbon $dateFrom,
         Carbon $dateTo,
