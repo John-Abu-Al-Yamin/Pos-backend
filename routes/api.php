@@ -7,6 +7,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryItemController;
 use App\Http\Controllers\InventoryQuantityController;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MarkupSettingController;
 use App\Http\Controllers\OpeningStockController;
 use App\Http\Controllers\PosController;
@@ -46,6 +47,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/dashboard', [DashboardController::class, 'index']);
+
+    // Printable invoices generated from existing transactions
+    Route::get('/invoices/purchases/{id}', [InvoiceController::class, 'purchase']);
+    Route::get('/invoices/sales/{id}', [InvoiceController::class, 'sale']);
 
     // Category routes
     Route::get('/categories', [CategoryController::class, 'index']);
