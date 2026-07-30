@@ -3,20 +3,17 @@
 namespace App\Services\Purchase;
 
 use App\Models\InventoryItem;
-use App\Models\InventoryQuantity;
 use App\Models\PurchaseHeader;
-use App\Models\StockMovement;
+use App\Services\Inventory\InventoryReceivingService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class PurchaseHeaderService
 {
     /**
      * Create a new class instance.
      */
-    public function __construct()
+    public function __construct(private readonly InventoryReceivingService $inventoryReceivingService)
     {
-        //
     }
     public function createDraft(array $data)
     {
@@ -80,72 +77,36 @@ class PurchaseHeaderService
 
                 if ($product->type === 'mobile') {
                     for ($i = 0; $i < $item->quantity; $i++) {
-
-                        $inventoryItem = InventoryItem::create([
-                            'product_id' => $product->id,
-                            'internal_serial' => $this->generateInventorySerial(),
-                            'status' => 'available',
-                            'source' => 'new_purchase',
-                            'cost_price' => $item->unit_price,
-                            'battery_health' => null,
-                            'screen_condition' => null,
-                            'body_condition' => null,
-                            'fingerprint_working' => null,
-                            'face_id_working' => null,
-                            'notes' => null,
-                        ]);
-
-                        // Create stock movement for the mobile item
-                        StockMovement::create([
-                            'product_id' => $product->id,
-                            'inventory_item_id' => $inventoryItem->id,
-                            'movement_type' => 'purchase',
-                            'movement' => 'in',
-                            'quantity' => 1,
-                            'unit_cost' => $item->unit_price,
-                            'reference_type' => PurchaseHeader::class,
-                            'reference_id' => $purchase->id,
-                            'created_by' => auth()->id(),
-                        ]);
+                        $this->inventoryReceivingService->receiveSerializedProduct(
+                            product: $product,
+                            internalSerial: $this->generateInventorySerial(),
+                            unitCost: (float) $item->unit_price,
+                            movementType: 'purchase',
+                            referenceType: PurchaseHeader::class,
+                            referenceId: $purchase->id,
+                            itemAttributes: [
+                                'source' => 'new_purchase',
+                                'battery_health' => null,
+                                'screen_condition' => null,
+                                'body_condition' => null,
+                                'fingerprint_working' => null,
+                                'face_id_working' => null,
+                            ],
+                            createdBy: auth()->id()
+                        );
                     }
                 }
 
                 if (in_array($product->type, ['accessory', 'spare_part'])) {
-                    $inventory = InventoryQuantity::where('product_id', $product->id)
-                        ->lockForUpdate()
-                        ->first();
-
-                    if (! $inventory) {
-                        $inventory = InventoryQuantity::create([
-                            'product_id' => $product->id,
-                            'quantity' => 0,
-                            'cost_price' => 0,
-                        ]);
-                    }
-
-                    $currentQty = $inventory->quantity;
-                    $currentCost = $inventory->cost_price;
-                    $newQty = $item->quantity;
-                    $newCost = $item->unit_price;
-
-                    $weightedAvgCost = $currentQty + $newQty > 0
-                        ? (($currentQty * $currentCost) + ($newQty * $newCost)) / ($currentQty + $newQty)
-                        : $newCost;
-
-                    $inventory->increment('quantity', $newQty);
-                    $inventory->update(['cost_price' => round($weightedAvgCost, 2)]);
-                    // Create stock movement for the accessory or spare part
-                    StockMovement::create([
-                        'product_id' => $product->id,
-                        'inventory_item_id' => null,
-                        'movement_type' => 'purchase',
-                        'movement' => 'in',
-                        'quantity' => $item->quantity,
-                        'unit_cost' => $item->unit_price,
-                        'reference_type' => PurchaseHeader::class,
-                        'reference_id' => $purchase->id,
-                        'created_by' => auth()->id(),
-                    ]);
+                    $this->inventoryReceivingService->receiveQuantityProduct(
+                        product: $product,
+                        quantity: (int) $item->quantity,
+                        unitCost: (float) $item->unit_price,
+                        movementType: 'purchase',
+                        referenceType: PurchaseHeader::class,
+                        referenceId: $purchase->id,
+                        createdBy: auth()->id()
+                    );
                 }
             }
 

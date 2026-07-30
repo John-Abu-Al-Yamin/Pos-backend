@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -9,6 +10,16 @@ return new class extends Migration
     private function addIndexIfNotExists(string $table, string|array $columns, ?string $indexName = null): void
     {
         $indexName = $indexName ?? $table . '_' . (is_array($columns) ? implode('_', $columns) : $columns) . '_index';
+
+        if (DB::getDriverName() === 'sqlite') {
+            if (! $this->sqliteIndexExists($table, $indexName)) {
+                Schema::table($table, function (Blueprint $blueprint) use ($columns, $indexName) {
+                    $blueprint->index($columns, $indexName);
+                });
+            }
+
+            return;
+        }
 
         $exists = DB::select("
             SELECT COUNT(*) as cnt FROM information_schema.statistics
@@ -19,6 +30,19 @@ return new class extends Migration
             $cols = is_array($columns) ? '`' . implode('`, `', $columns) . '`' : "`$columns`";
             DB::statement("ALTER TABLE `$table` ADD INDEX `$indexName` ($cols)");
         }
+    }
+
+    private function sqliteIndexExists(string $table, string $indexName): bool
+    {
+        $indexes = DB::select("PRAGMA index_list('{$table}')");
+
+        foreach ($indexes as $index) {
+            if (($index->name ?? null) === $indexName) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function up(): void

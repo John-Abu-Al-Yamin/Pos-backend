@@ -3,8 +3,8 @@
 namespace App\Services\PurchaseUsed;
 
 use App\Models\InventoryItem;
-use App\Models\StockMovement;
 use App\Models\UsedDevicePurchaseHeader;
+use App\Services\Inventory\InventoryReceivingService;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseUsedDeviceService
@@ -12,9 +12,8 @@ class PurchaseUsedDeviceService
     /**
      * Create a new class instance.
      */
-    public function __construct()
+    public function __construct(private readonly InventoryReceivingService $inventoryReceivingService)
     {
-        //
     }
 
     public function createDraft(array $data)
@@ -89,33 +88,24 @@ class PurchaseUsedDeviceService
 
             foreach ($purchase->items as $item) {
                 for ($i = 0; $i < $item->quantity; $i++) {
-                    $inventoryItem = InventoryItem::create([
-                        'product_id' => $item->product_id,
-                        'internal_serial' => $this->generateInventorySerial(),
-                        'status' => 'available',
-                        'source' => 'used_purchase',
-                        'cost_price' => $item->unit_price,
-
-                        'battery_health' => $item->battery_health,
-                        'screen_condition' => $item->screen_condition,
-                        'body_condition' => $item->body_condition,
-                        'fingerprint_working' => $item->fingerprint_working,
-                        'face_id_working' => $item->face_id_working,
-
-                        'notes' => $item->notes,
-                    ]);
-
-                    StockMovement::create([
-                        'product_id' => $item->product_id,
-                        'inventory_item_id' => $inventoryItem->id,
-                        'movement_type' => 'used_purchase',
-                        'movement' => 'in',
-                        'quantity' => 1,
-                        'unit_cost' => $item->unit_price,
-                        'reference_type' => UsedDevicePurchaseHeader::class,
-                        'reference_id' => $purchase->id,
-                        'created_by' => auth()->id(),
-                    ]);
+                    $this->inventoryReceivingService->receiveSerializedProduct(
+                        product: $item->product,
+                        internalSerial: $this->generateInventorySerial(),
+                        unitCost: (float) $item->unit_price,
+                        movementType: 'used_purchase',
+                        referenceType: UsedDevicePurchaseHeader::class,
+                        referenceId: $purchase->id,
+                        itemAttributes: [
+                            'source' => 'used_purchase',
+                            'battery_health' => $item->battery_health,
+                            'screen_condition' => $item->screen_condition,
+                            'body_condition' => $item->body_condition,
+                            'fingerprint_working' => $item->fingerprint_working,
+                            'face_id_working' => $item->face_id_working,
+                        ],
+                        notes: $item->notes,
+                        createdBy: auth()->id()
+                    );
                 }
             }
 

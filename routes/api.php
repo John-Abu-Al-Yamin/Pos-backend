@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryItemController;
 use App\Http\Controllers\InventoryQuantityController;
 use App\Http\Controllers\MarkupSettingController;
+use App\Http\Controllers\OpeningStockController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseHeaderController;
@@ -149,6 +150,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Stock Movements
     Route::get('/stock-movements', [StockMovementController::class, 'index']);
     Route::get('/stock-movements/{id}', [StockMovementController::class, 'show']);
+
+    // Opening Stock
+    Route::middleware('admin')->get('/opening-stock/template', [OpeningStockController::class, 'template']);
+    Route::middleware('admin')->post('/opening-stock/import', [OpeningStockController::class, 'import']);
 
     // Used Device Purchase Header routes
     Route::get('/used-purchase-headers', [UsedDevicePurchaseHeaderController::class, 'index']);
