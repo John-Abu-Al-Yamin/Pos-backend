@@ -24,7 +24,6 @@ function openingStockCsv(array $rows): UploadedFile
         'product_name',
         'quantity',
         'serial_number',
-        'imei',
         'internal_serial',
         'unit_cost',
         'cost_price',
@@ -60,6 +59,28 @@ function openingStockCsvWithHeaders(array $headers, array $rows): UploadedFile
     }
 
     return UploadedFile::fake()->createWithContent('opening-stock.csv', implode("\n", $csvRows));
+}
+
+function openingStockGeneratedIdentifierIsValid(?string $identifier): bool
+{
+    if (! is_string($identifier) || preg_match('/^\d{15}$/', $identifier) !== 1) {
+        return false;
+    }
+
+    $sum = 0;
+
+    foreach (str_split(strrev($identifier)) as $index => $digit) {
+        $value = (int) $digit;
+
+        if ($index % 2 === 1) {
+            $value *= 2;
+            $value = $value > 9 ? $value - 9 : $value;
+        }
+
+        $sum += $value;
+    }
+
+    return $sum % 10 === 0;
 }
 
 test('admin can import quantity and serialized opening stock from separate templates', function () {
@@ -100,7 +121,7 @@ test('admin can import quantity and serialized opening stock from separate templ
             'file' => openingStockCsv([
                 [
                     'product_id' => $mobile->id,
-                    'serial_number' => 'IMEI-001',
+                    'serial_number' => 'SN-001',
                     'unit_cost' => 25000,
                     'battery_health' => 100,
                     'fingerprint_working' => 'yes',
@@ -129,7 +150,7 @@ test('admin can import quantity and serialized opening stock from separate templ
     expect(InventoryQuantity::where('product_id', $accessory->id)->value('quantity'))->toBe(10);
     expect(InventoryQuantity::where('product_id', $accessory->id)->value('cost_price'))->toBe('120.00');
 
-    $inventoryItem = InventoryItem::where('internal_serial', 'IMEI-001')->first();
+    $inventoryItem = InventoryItem::where('internal_serial', 'SN-001')->first();
 
     expect($inventoryItem)->not->toBeNull()
         ->and($inventoryItem->product_id)->toBe($mobile->id)
@@ -137,6 +158,53 @@ test('admin can import quantity and serialized opening stock from separate templ
         ->and($inventoryItem->battery_health)->toBe(100)
         ->and($inventoryItem->fingerprint_working)->toBeTrue()
         ->and($inventoryItem->face_id_working)->toBeFalse();
+
+    expect(StockMovement::where('movement_type', 'opening_stock')->count())->toBe(2);
+});
+
+test('opening stock import generates valid unique mobile identifiers when serial and internal serial are missing', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $category = Category::create(['name' => 'Inventory']);
+
+    $mobile = Product::create([
+        'category_id' => $category->id,
+        'name' => 'iPhone 15',
+        'type' => 'mobile',
+        'min_stock' => 1,
+    ]);
+
+    $response = $this
+        ->actingAs($admin)
+        ->post('/api/opening-stock/import', [
+            'file' => openingStockCsv([
+                [
+                    'product_id' => $mobile->id,
+                    'unit_cost' => 25000,
+                ],
+                [
+                    'product_id' => $mobile->id,
+                    'unit_cost' => 26000,
+                ],
+            ]),
+            'template_type' => OpeningStockTemplateExport::TYPE_MOBILE,
+        ]);
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('data.total_rows', 2)
+        ->assertJsonPath('data.serialized_units', 2)
+        ->assertJsonPath('data.stock_movements', 2);
+
+    $generatedIdentifiers = InventoryItem::where('product_id', $mobile->id)
+        ->pluck('internal_serial');
+
+    expect($generatedIdentifiers)->toHaveCount(2)
+        ->and($generatedIdentifiers->unique())->toHaveCount(2);
+
+    foreach ($generatedIdentifiers as $identifier) {
+        expect(openingStockGeneratedIdentifierIsValid($identifier))->toBeTrue();
+    }
 
     expect(StockMovement::where('movement_type', 'opening_stock')->count())->toBe(2);
 });
@@ -251,12 +319,12 @@ test('invalid serialized rows do not create false duplicate serial errors', func
                 [
                     'product_id' => $mobile->id,
                     'quantity' => 2,
-                    'serial_number' => 'IMEI-DUP',
+                    'serial_number' => 'SN-DUP',
                     'unit_cost' => 25000,
                 ],
                 [
                     'product_id' => $mobile->id,
-                    'serial_number' => 'IMEI-DUP',
+                    'serial_number' => 'SN-DUP',
                     'unit_cost' => 25000,
                 ],
             ]),
@@ -269,8 +337,8 @@ test('invalid serialized rows do not create false duplicate serial errors', func
 
     $messages = collect($response->json('errors'))->pluck('message');
 
-    expect($messages)->toContain('Mobile opening stock rows must represent one device. Use one row per serial number/IMEI.');
-    expect($messages->contains(fn ($message) => str_contains($message, 'Duplicate serial number/IMEI in import file')))->toBeFalse();
+    expect($messages)->toContain('Mobile opening stock rows must represent one device. Use one row per serial number.');
+    expect($messages->contains(fn ($message) => str_contains($message, 'Duplicate serial number in import file')))->toBeFalse();
     expect(InventoryItem::count())->toBe(0);
     expect(StockMovement::count())->toBe(0);
 });
@@ -292,7 +360,7 @@ test('opening stock import matches product names case insensitively', function (
             'file' => openingStockCsv([
                 [
                     'product_name' => 'iphone 13',
-                    'serial_number' => 'IMEI-CASE-001',
+                    'serial_number' => 'SN-CASE-001',
                     'unit_cost' => 18000,
                 ],
             ]),
@@ -303,7 +371,7 @@ test('opening stock import matches product names case insensitively', function (
         ->assertOk()
         ->assertJsonPath('data.serialized_units', 1);
 
-    expect(InventoryItem::where('internal_serial', 'IMEI-CASE-001')->exists())->toBeTrue();
+    expect(InventoryItem::where('internal_serial', 'SN-CASE-001')->exists())->toBeTrue();
     expect(StockMovement::where('movement_type', 'opening_stock')->count())->toBe(1);
 });
 
@@ -324,7 +392,7 @@ test('opening stock import rejects invalid boolean values', function () {
             'file' => openingStockCsv([
                 [
                     'product_id' => $mobile->id,
-                    'serial_number' => 'IMEI-BOOL-001',
+                    'serial_number' => 'SN-BOOL-001',
                     'unit_cost' => 25000,
                     'fingerprint_working' => 'maybe',
                     'face_id_working' => 'unknown',
@@ -362,7 +430,7 @@ test('opening stock import accepts valid boolean values', function () {
             'file' => openingStockCsv([
                 [
                     'product_id' => $mobile->id,
-                    'serial_number' => 'IMEI-BOOL-002',
+                    'serial_number' => 'SN-BOOL-002',
                     'unit_cost' => 25000,
                     'fingerprint_working' => 'Yes',
                     'face_id_working' => 'No',
@@ -373,7 +441,7 @@ test('opening stock import accepts valid boolean values', function () {
 
     $response->assertOk();
 
-    $inventoryItem = InventoryItem::where('internal_serial', 'IMEI-BOOL-002')->first();
+    $inventoryItem = InventoryItem::where('internal_serial', 'SN-BOOL-002')->first();
 
     expect($inventoryItem)->not->toBeNull()
         ->and($inventoryItem->fingerprint_working)->toBeTrue()
@@ -397,7 +465,7 @@ test('opening stock import rejects invalid fixed option values', function () {
             'file' => openingStockCsv([
                 [
                     'product_id' => $mobile->id,
-                    'serial_number' => 'IMEI-OPTION-001',
+                    'serial_number' => 'SN-OPTION-001',
                     'unit_cost' => 25000,
                     'screen_condition' => 'Mint',
                     'body_condition' => 'Unknown',
@@ -434,7 +502,7 @@ test('opening stock import does not skip real data matching the old example row'
             'file' => openingStockCsv([
                 [
                     'product_name' => 'iPhone 15',
-                    'serial_number' => 'IMEI-EXAMPLE-001',
+                    'serial_number' => 'SN-EXAMPLE-001',
                     'unit_cost' => 25000,
                 ],
             ]),
@@ -446,7 +514,7 @@ test('opening stock import does not skip real data matching the old example row'
         ->assertJsonPath('data.total_rows', 1)
         ->assertJsonPath('data.serialized_units', 1);
 
-    expect(InventoryItem::where('internal_serial', 'IMEI-EXAMPLE-001')->exists())->toBeTrue();
+    expect(InventoryItem::where('internal_serial', 'SN-EXAMPLE-001')->exists())->toBeTrue();
     expect(StockMovement::where('movement_type', 'opening_stock')->count())->toBe(1);
 });
 
@@ -521,7 +589,7 @@ test('opening stock import ignores generated example rows', function () {
                 ],
                 [
                     'product_id' => $mobile->id,
-                    'serial_number' => 'IMEI-REAL-001',
+                    'serial_number' => 'SN-REAL-001',
                     'unit_cost' => 25000,
                 ],
             ]),
@@ -558,7 +626,7 @@ test('opening stock import ignores generated example rows', function () {
         ->assertJsonPath('data.quantity_units', 7);
 
     expect(InventoryItem::where('internal_serial', 'SN123456789')->exists())->toBeFalse();
-    expect(InventoryItem::where('internal_serial', 'IMEI-REAL-001')->exists())->toBeTrue();
+    expect(InventoryItem::where('internal_serial', 'SN-REAL-001')->exists())->toBeTrue();
     expect(InventoryQuantity::where('product_id', $accessory->id)->value('quantity'))->toBe(7);
 });
 
@@ -603,7 +671,6 @@ test('admin can download opening stock templates', function () {
     expect(OpeningStockTemplateExport::MOBILE_HEADINGS)->toBe([
         'product_name',
         'serial_number',
-        'imei',
         'internal_serial',
         'cost_price',
         'battery_health',
@@ -624,7 +691,6 @@ test('admin can download opening stock templates', function () {
     expect(OpeningStockTemplateExport::MOBILE_EXAMPLE_ROW)->toBe([
         'Samsung Galaxy A56',
         'SN123456789',
-        '356789123456789',
         'INT-0001',
         12000,
         100,
@@ -675,15 +741,15 @@ test('opening stock templates contain dropdown validations', function () {
     expect($mobileListSheet)->not->toBeNull();
     expect($mobileSheet->getCell('A2')->getValue())->toBe('Samsung Galaxy A56');
     expect($mobileSheet->getCell('B2')->getValue())->toBe('SN123456789');
-    expect($mobileSheet->getCell('K2')->getValue())->toBe('Sample only');
+    expect($mobileSheet->getCell('J2')->getValue())->toBe('Sample only');
     expect($mobileSheet->getStyle('A2')->getFont()->getItalic())->toBeTrue();
     expect($mobileSheet->getStyle('A2')->getFill()->getFillType())->toBe(Fill::FILL_SOLID);
     expect($mobileSheet->getCell('A2')->getDataValidation()->getType())->toBe(DataValidation::TYPE_LIST);
-    expect($mobileSheet->getCell('F2')->getDataValidation()->getType())->toBe(DataValidation::TYPE_WHOLE);
+    expect($mobileSheet->getCell('E2')->getDataValidation()->getType())->toBe(DataValidation::TYPE_WHOLE);
+    expect($mobileSheet->getCell('F2')->getDataValidation()->getType())->toBe(DataValidation::TYPE_LIST);
     expect($mobileSheet->getCell('G2')->getDataValidation()->getType())->toBe(DataValidation::TYPE_LIST);
     expect($mobileSheet->getCell('H2')->getDataValidation()->getType())->toBe(DataValidation::TYPE_LIST);
     expect($mobileSheet->getCell('I2')->getDataValidation()->getType())->toBe(DataValidation::TYPE_LIST);
-    expect($mobileSheet->getCell('J2')->getDataValidation()->getType())->toBe(DataValidation::TYPE_LIST);
     expect($mobileListSheet->getCell('A1')->getValue())->toBe('iPhone 13');
     expect($mobileListSheet->getCell('B1')->getValue())->toBe('Yes');
     expect($mobileListSheet->getCell('B2')->getValue())->toBe('No');

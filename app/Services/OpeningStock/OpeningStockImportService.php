@@ -186,6 +186,7 @@ class OpeningStockImportService
                 ];
                 $rowIsValid = false;
             } elseif ($product->type === 'mobile') {
+                $data = $this->fillMissingSerializedIdentifier($data, $serials);
                 $rowIsValid = $this->validateSerializedRow($data, $rowNumber, $errors, $serials);
             } elseif (in_array($product->type, ['accessory', 'spare_part'], true)) {
                 $rowIsValid = $this->validateQuantityRow($data, $rowNumber, $errors);
@@ -294,7 +295,7 @@ class OpeningStockImportService
             'product_id' => $this->clean($row['product_id'] ?? null),
             'product_name' => $this->clean($row['product_name'] ?? $row['name'] ?? null),
             'quantity' => $this->clean($row['quantity'] ?? null),
-            'serial_number' => $this->clean($row['serial_number'] ?? $row['internal_serial'] ?? $row['imei'] ?? null),
+            'serial_number' => $this->clean($row['serial_number'] ?? $row['internal_serial'] ?? null),
             'unit_cost' => $this->clean($row['unit_cost'] ?? $row['cost_price'] ?? null),
             'battery_health' => $this->clean($row['battery_health'] ?? null),
             'screen_condition' => $this->cleanOption($row['screen_condition'] ?? null, OpeningStockTemplateExport::SCREEN_CONDITION_OPTIONS),
@@ -345,25 +346,12 @@ class OpeningStockImportService
     {
         $rowErrors = [];
 
-        if (! $data['serial_number']) {
-            $rowErrors[] = [
-                'row' => $rowNumber,
-                'product' => $data['product_name'] ?? $data['product_id'],
-                'field' => 'serial_number',
-                'message' => 'Serial number/IMEI is required for mobile products.',
-            ];
-
-            array_push($errors, ...$rowErrors);
-
-            return false;
-        }
-
         if ($data['quantity'] !== null && (int) $data['quantity'] !== 1) {
             $rowErrors[] = [
                 'row' => $rowNumber,
                 'product' => $data['product_name'] ?? $data['product_id'],
                 'field' => 'quantity',
-                'message' => 'Mobile opening stock rows must represent one device. Use one row per serial number/IMEI.',
+                'message' => 'Mobile opening stock rows must represent one device. Use one row per serial number.',
             ];
         }
 
@@ -374,7 +362,7 @@ class OpeningStockImportService
                 'row' => $rowNumber,
                 'product' => $data['product_name'] ?? $data['product_id'],
                 'field' => 'serial_number',
-                'message' => "Duplicate serial number/IMEI in import file. First seen on row {$serials[$serialKey]}.",
+                'message' => "Duplicate serial number in import file. First seen on row {$serials[$serialKey]}.",
             ];
         }
 
@@ -383,7 +371,7 @@ class OpeningStockImportService
                 'row' => $rowNumber,
                 'product' => $data['product_name'] ?? $data['product_id'],
                 'field' => 'serial_number',
-                'message' => 'Serial number/IMEI already exists in inventory.',
+                'message' => 'Serial number already exists in inventory.',
             ];
         }
 
@@ -396,6 +384,53 @@ class OpeningStockImportService
         $serials[$serialKey] = $rowNumber;
 
         return true;
+    }
+
+    private function fillMissingSerializedIdentifier(array $data, array $serials): array
+    {
+        if ($data['serial_number']) {
+            return $data;
+        }
+
+        $data['serial_number'] = $this->generateUniqueMobileIdentifier($serials);
+
+        return $data;
+    }
+
+    private function generateUniqueMobileIdentifier(array $serials): string
+    {
+        do {
+            $identifier = $this->generateValidMobileIdentifier();
+            $serialKey = mb_strtolower($identifier);
+        } while (isset($serials[$serialKey]) || InventoryItem::where('internal_serial', $identifier)->exists());
+
+        return $identifier;
+    }
+
+    private function generateValidMobileIdentifier(): string
+    {
+        $base = '35' . str_pad((string) random_int(0, 999999999999), 12, '0', STR_PAD_LEFT);
+
+        return $base . $this->luhnCheckDigit($base);
+    }
+
+    private function luhnCheckDigit(string $number): int
+    {
+        $sum = 0;
+        $length = strlen($number);
+
+        foreach (str_split($number) as $index => $digit) {
+            $value = (int) $digit;
+
+            if (($length - $index) % 2 === 1) {
+                $value *= 2;
+                $value = $value > 9 ? $value - 9 : $value;
+            }
+
+            $sum += $value;
+        }
+
+        return (10 - ($sum % 10)) % 10;
     }
 
     private function validateQuantityRow(array $data, int $rowNumber, array &$errors): bool

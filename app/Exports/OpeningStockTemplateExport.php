@@ -20,7 +20,6 @@ class OpeningStockTemplateExport implements FromArray, WithHeadings, WithEvents
     public const MOBILE_HEADINGS = [
         'product_name',
         'serial_number',
-        'imei',
         'internal_serial',
         'cost_price',
         'battery_health',
@@ -43,7 +42,6 @@ class OpeningStockTemplateExport implements FromArray, WithHeadings, WithEvents
     public const MOBILE_EXAMPLE_ROW = [
         'Samsung Galaxy A56',
         'SN123456789',
-        '356789123456789',
         'INT-0001',
         12000,
         100,
@@ -120,19 +118,19 @@ class OpeningStockTemplateExport implements FromArray, WithHeadings, WithEvents
                         continue;
                     }
 
-                    $sheet->getCell('F' . $row)
+                    $sheet->getCell('E' . $row)
                         ->setDataValidation($this->wholeNumberValidation(0, 100, true, 'Battery health', 'Enter a whole number from 0 to 100.'));
 
-                    $sheet->getCell('G' . $row)
+                    $sheet->getCell('F' . $row)
                         ->setDataValidation($this->listValidation($screenConditionRange, true, 'Screen condition', 'Select a screen condition.'));
 
-                    $sheet->getCell('H' . $row)
+                    $sheet->getCell('G' . $row)
                         ->setDataValidation($this->listValidation($bodyConditionRange, true, 'Body condition', 'Select a body condition.'));
 
-                    $sheet->getCell('I' . $row)
+                    $sheet->getCell('H' . $row)
                         ->setDataValidation($this->listValidation($booleanRange, true, 'Fingerprint working', 'Select Yes or No.'));
 
-                    $sheet->getCell('J' . $row)
+                    $sheet->getCell('I' . $row)
                         ->setDataValidation($this->listValidation($booleanRange, true, 'Face ID working', 'Select Yes or No.'));
                 }
             },
@@ -167,7 +165,7 @@ class OpeningStockTemplateExport implements FromArray, WithHeadings, WithEvents
 
     private function styleExampleRow(Worksheet $sheet): void
     {
-        $lastColumn = $this->templateType === self::TYPE_QUANTITY ? 'D' : 'K';
+        $lastColumn = $this->templateType === self::TYPE_QUANTITY ? 'D' : 'J';
 
         $sheet->getStyle("A2:{$lastColumn}2")->applyFromArray([
             'font' => [
