@@ -6,6 +6,7 @@ use App\Models\InventoryItem;
 use App\Models\InventoryQuantity;
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Services\Audit\AuditLogService;
 
 class InventoryReceivingService
 {
@@ -32,14 +33,36 @@ class InventoryReceivingService
         }
 
         $currentQty = $inventory->quantity;
-        $currentCost = $inventory->cost_price;
+        $currentCost = (float) $inventory->cost_price;
 
         $weightedAvgCost = $currentQty + $quantity > 0
             ? (($currentQty * $currentCost) + ($quantity * $unitCost)) / ($currentQty + $quantity)
             : $unitCost;
+        $newCost = round($weightedAvgCost, 2);
 
         $inventory->increment('quantity', $quantity);
-        $inventory->update(['cost_price' => round($weightedAvgCost, 2)]);
+        $inventory->update(['cost_price' => $newCost]);
+
+        if (round($currentCost, 2) !== $newCost) {
+            app(AuditLogService::class)->record(
+                module: 'inventory',
+                action: 'inventory_cost_changed',
+                auditable: $inventory,
+                oldValues: ['cost_price' => round($currentCost, 2)],
+                newValues: ['cost_price' => $newCost],
+                changedFields: ['cost_price'],
+                metadata: [
+                    'product_id' => $product->id,
+                    'old_cost' => round($currentCost, 2),
+                    'new_cost' => $newCost,
+                    'reason' => $movementType,
+                    'related_document_type' => $referenceType,
+                    'related_document_id' => $referenceId,
+                ],
+                severity: 'warning',
+                deferUntilCommit: true,
+            );
+        }
 
         return StockMovement::create([
             'product_id' => $product->id,
@@ -92,6 +115,26 @@ class InventoryReceivingService
             'notes' => $notes,
             'created_by' => $createdBy ?? auth()->id(),
         ]);
+
+        app(AuditLogService::class)->record(
+            module: 'inventory',
+            action: 'inventory_cost_changed',
+            auditable: $inventoryItem,
+            oldValues: ['cost_price' => null],
+            newValues: ['cost_price' => round($unitCost, 2)],
+            changedFields: ['cost_price'],
+            metadata: [
+                'product_id' => $product->id,
+                'inventory_item_id' => $inventoryItem->id,
+                'old_cost' => null,
+                'new_cost' => round($unitCost, 2),
+                'reason' => $movementType,
+                'related_document_type' => $referenceType,
+                'related_document_id' => $referenceId,
+            ],
+            severity: 'warning',
+            deferUntilCommit: true,
+        );
 
         return [$inventoryItem, $stockMovement];
     }

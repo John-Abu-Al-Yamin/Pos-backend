@@ -8,6 +8,7 @@ use App\Models\SalesHeader;
 use App\Models\SalesReturnHeader;
 use App\Models\SalesReturnItem;
 use App\Models\StockMovement;
+use App\Services\Audit\AuditLogService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +16,7 @@ class SalesReturnService
 {
     public function processReturn(array $data)
     {
-        return DB::transaction(function () use ($data) {
+        $return = AuditLogService::withoutModelEvents(fn () => DB::transaction(function () use ($data) {
 
             $sale = SalesHeader::with('items.product', 'items.inventoryItem')
                 ->lockForUpdate()
@@ -142,9 +143,32 @@ class SalesReturnService
                     $weightedAvgCost = $newQty > 0
                         ? (($currentQty * $currentCost) + ($returnQty * $returnCost)) / $newQty
                         : $returnCost;
+                    $newCost = round($weightedAvgCost, 2);
 
                     $invQty->increment('quantity', $returnQty);
-                    $invQty->update(['cost_price' => round($weightedAvgCost, 2)]);
+                    $invQty->update(['cost_price' => $newCost]);
+
+                    if (round($currentCost, 2) !== $newCost) {
+                        app(AuditLogService::class)->record(
+                            module: 'inventory',
+                            action: 'inventory_cost_changed',
+                            auditable: $invQty,
+                            oldValues: ['cost_price' => round($currentCost, 2)],
+                            newValues: ['cost_price' => $newCost],
+                            changedFields: ['cost_price'],
+                            metadata: [
+                                'product_id' => $preparedItem['product_id'],
+                                'old_cost' => round($currentCost, 2),
+                                'new_cost' => $newCost,
+                                'reason' => 'sales_return_created',
+                                'related_document_type' => SalesReturnHeader::class,
+                                'related_document_id' => $return->id,
+                                'reference_number' => $return->return_number,
+                            ],
+                            severity: 'warning',
+                            deferUntilCommit: true,
+                        );
+                    }
                 }
 
                 StockMovement::create([
@@ -162,12 +186,61 @@ class SalesReturnService
             }
 
             return $return->load('items.product', 'items.salesItem.inventoryItem', 'customer');
-        });
+        }));
+
+        app(AuditLogService::class)->record(
+            module: 'sales_returns',
+            action: 'sales_return_created',
+            auditable: $return,
+            metadata: [
+                'return_number' => $return->return_number,
+                'invoice_number' => $return->salesHeader?->invoice_number,
+                'sales_header_id' => $return->sales_header_id,
+                'customer_id' => $return->customer_id,
+                'total_refund_amount' => (float) $return->total_refund_amount,
+                'reason' => $return->reason,
+                'items_count' => $return->items->count(),
+            ],
+            severity: 'critical',
+        );
+
+        app(AuditLogService::class)->record(
+            module: 'sales_returns',
+            action: 'refund_processed',
+            auditable: $return,
+            metadata: [
+                'return_number' => $return->return_number,
+                'invoice_number' => $return->salesHeader?->invoice_number,
+                'amount' => (float) $return->total_refund_amount,
+                'reason' => $return->reason,
+            ],
+            severity: 'critical',
+        );
+
+        app(AuditLogService::class)->record(
+            module: 'inventory',
+            action: 'stock_adjusted',
+            auditable: $return,
+            metadata: [
+                'reason' => 'sales_return_created',
+                'reference_number' => $return->return_number,
+                'movement' => 'in',
+                'items' => $return->items->map(fn ($item) => [
+                    'product_id' => $item->product_id,
+                    'inventory_item_id' => $item->inventory_item_id,
+                    'quantity' => (float) $item->quantity,
+                    'unit_cost' => (float) $item->unit_cost,
+                ])->values()->all(),
+            ],
+            severity: 'critical',
+        );
+
+        return $return;
     }
 
     private function generateReturnNumber(): string
     {
-        return 'SR-' . date('YmdHis') . str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
+        return 'SR-'.date('YmdHis').str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
     }
 
     private function allowedUnitRefundAmount(SalesHeader $sale, $salesItem): float

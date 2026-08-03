@@ -1,13 +1,20 @@
 <?php
 
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\InventoryItemController;
 use App\Http\Controllers\InventoryQuantityController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\MaintenanceDeviceController;
+use App\Http\Controllers\MaintenanceHeaderController;
+use App\Http\Controllers\MaintenanceOperationController;
+use App\Http\Controllers\MaintenanceTicketController;
+use App\Http\Controllers\MaintenanceUsedPartController;
 use App\Http\Controllers\MarkupSettingController;
 use App\Http\Controllers\OpeningStockController;
 use App\Http\Controllers\PosController;
@@ -16,24 +23,18 @@ use App\Http\Controllers\PurchaseHeaderController;
 use App\Http\Controllers\PurchaseItemController;
 use App\Http\Controllers\PurchaseReturnableController;
 use App\Http\Controllers\PurchaseReturnHeaderController;
-use App\Http\Controllers\SalesHeaderController;
-use App\Http\Controllers\SalesReturnHeaderController;
-use App\Http\Controllers\SalesReturnableController;
-use App\Http\Controllers\MaintenanceDeviceController;
-use App\Http\Controllers\MaintenanceHeaderController;
-use App\Http\Controllers\MaintenanceTicketController;
-use App\Http\Controllers\MaintenanceOperationController;
-use App\Http\Controllers\MaintenanceUsedPartController;
-use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ReportController;
-use App\Http\Controllers\StockMovementController;
-use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SalaryAssignmentController;
 use App\Http\Controllers\SalaryPaymentController;
 use App\Http\Controllers\SalaryPaymentItemController;
+use App\Http\Controllers\SalesHeaderController;
+use App\Http\Controllers\SalesReturnableController;
+use App\Http\Controllers\SalesReturnHeaderController;
+use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UsedDevicePurchaseHeaderController;
 use App\Http\Controllers\UsedDevicePurchaseItemController;
-use Illuminate\Http\Request;
+use App\Http\Responses\ApiResponse;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/hello', function () {
@@ -41,9 +42,9 @@ Route::get('/hello', function () {
 });
 
 // AUTHENTICATION
-Route::post("/login", [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('audit.context');
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'audit.context'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/dashboard', [DashboardController::class, 'index']);
@@ -89,7 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Expense Categories (static enum values)
     Route::get('/expense-categories', function () {
-        return \App\Http\Responses\ApiResponse::success(
+        return ApiResponse::success(
             message: 'تم جلب تصنيفات المصروفات بنجاح',
             data: [
                 ['name' => 'electricity'],
@@ -194,7 +195,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sales-returns', [SalesReturnHeaderController::class, 'store']);
     Route::get('/sales-returns/{id}', [SalesReturnHeaderController::class, 'show']);
 
-
     // Purchase Returnable (eligible for return)
     Route::get('/purchase-returnable', [PurchaseReturnableController::class, 'index']);
     Route::get('/purchase-returnable/{id}', [PurchaseReturnableController::class, 'show']);
@@ -203,7 +203,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/purchase-returns', [PurchaseReturnHeaderController::class, 'index']);
     Route::get('/purchase-returns/{id}', [PurchaseReturnHeaderController::class, 'show']);
     Route::post('/purchase-returns', [PurchaseReturnHeaderController::class, 'store']);
-
 
     // Maintenance Ticket route (atomic creation of device + header)
     Route::post('/maintenance-tickets', [MaintenanceTicketController::class, 'store']);
@@ -258,8 +257,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/salary-payments/{payment}/items/{item}', [SalaryPaymentItemController::class, 'show']);
     Route::put('/salary-payments/{payment}/items/{item}', [SalaryPaymentItemController::class, 'update']);
     Route::delete('/salary-payments/{payment}/items/{item}', [SalaryPaymentItemController::class, 'destroy']);
-    
-    
+
     // Report routes
     Route::prefix('reports')->group(function () {
         Route::get('/sales', [ReportController::class, 'sales']);
@@ -270,9 +268,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/profit-loss', [ReportController::class, 'profitLoss']);
         Route::get('/salaries', [ReportController::class, 'salaries']);
     });
-    
+
     // Admin-only routes
     Route::middleware('admin')->prefix('admin')->group(function () {
-        Route::post("/create-user", [AuthController::class, 'createUser']);
+        Route::post('/create-user', [AuthController::class, 'createUser']);
+        Route::get('/audit-logs', [AuditLogController::class, 'index']);
+        Route::get('/audit-logs/stats', [AuditLogController::class, 'stats']);
+        Route::get('/audit-logs/filters', [AuditLogController::class, 'filters']);
+        Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show']);
+        Route::get('/audit-logs/{auditLog}/related', [AuditLogController::class, 'related']);
     });
 });

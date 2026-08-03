@@ -8,6 +8,7 @@ use App\Models\PurchaseHeader;
 use App\Models\PurchaseReturnHeader;
 use App\Models\PurchaseReturnItem;
 use App\Models\StockMovement;
+use App\Services\Audit\AuditLogService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +16,7 @@ class PurchaseReturnService
 {
     public function processReturn(array $data)
     {
-        return DB::transaction(function () use ($data) {
+        $return = AuditLogService::withoutModelEvents(fn () => DB::transaction(function () use ($data) {
 
             $purchase = PurchaseHeader::with('items.product')
                 ->lockForUpdate()
@@ -172,9 +173,32 @@ class PurchaseReturnService
                     $newAvgCost = $newQty > 0
                         ? (($currentQty * $currentCost) - ($returnQty * $returnCost)) / $newQty
                         : 0;
+                    $newCost = round(max($newAvgCost, 0), 2);
 
                     $invQty->decrement('quantity', $returnQty);
-                    $invQty->update(['cost_price' => round(max($newAvgCost, 0), 2)]);
+                    $invQty->update(['cost_price' => $newCost]);
+
+                    if (round($currentCost, 2) !== $newCost) {
+                        app(AuditLogService::class)->record(
+                            module: 'inventory',
+                            action: 'inventory_cost_changed',
+                            auditable: $invQty,
+                            oldValues: ['cost_price' => round($currentCost, 2)],
+                            newValues: ['cost_price' => $newCost],
+                            changedFields: ['cost_price'],
+                            metadata: [
+                                'product_id' => $preparedItem['product_id'],
+                                'old_cost' => round($currentCost, 2),
+                                'new_cost' => $newCost,
+                                'reason' => 'purchase_return_created',
+                                'related_document_type' => PurchaseReturnHeader::class,
+                                'related_document_id' => $return->id,
+                                'reference_number' => $return->return_number,
+                            ],
+                            severity: 'warning',
+                            deferUntilCommit: true,
+                        );
+                    }
                 }
 
                 StockMovement::create([
@@ -192,11 +216,47 @@ class PurchaseReturnService
             }
 
             return $return->load('items.product', 'items.purchaseItem', 'items.inventoryItem', 'supplier');
-        });
+        }));
+
+        app(AuditLogService::class)->record(
+            module: 'purchase_returns',
+            action: 'purchase_return_created',
+            auditable: $return,
+            metadata: [
+                'return_number' => $return->return_number,
+                'purchase_reference_number' => $return->purchaseHeader?->purchaseHeader_number,
+                'purchase_header_id' => $return->purchase_header_id,
+                'supplier_id' => $return->supplier_id,
+                'total_refund_amount' => (float) $return->total_refund_amount,
+                'reason' => $return->reason,
+                'items_count' => $return->items->count(),
+            ],
+            severity: 'critical',
+        );
+
+        app(AuditLogService::class)->record(
+            module: 'inventory',
+            action: 'stock_adjusted',
+            auditable: $return,
+            metadata: [
+                'reason' => 'purchase_return_created',
+                'reference_number' => $return->return_number,
+                'movement' => 'out',
+                'items' => $return->items->map(fn ($item) => [
+                    'product_id' => $item->product_id,
+                    'inventory_item_id' => $item->inventory_item_id,
+                    'quantity' => (float) $item->quantity,
+                    'unit_cost' => (float) $item->unit_cost,
+                ])->values()->all(),
+            ],
+            severity: 'critical',
+        );
+
+        return $return;
     }
 
     private function generateReturnNumber(): string
     {
-        return 'PR-' . date('YmdHis') . str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
+        return 'PR-'.date('YmdHis').str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
     }
 }

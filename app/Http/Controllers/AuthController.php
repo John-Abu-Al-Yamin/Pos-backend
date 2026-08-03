@@ -5,22 +5,29 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CreateUser;
 use App\Http\Requests\LoginRequest;
 use App\Http\Responses\ApiResponse;
+use App\Models\User;
+use App\Services\Audit\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use App\Models\User;
 
 class AuthController extends Controller
 {
     //
 
-
-    public function login(LoginRequest $request)
+    public function login(LoginRequest $request, AuditLogService $auditLogService)
     {
         $data = $request->validated();
 
         $user = User::where('email', $data['email'])->first();
 
         if (! $user || ! Hash::check($data['password'], $user->password)) {
+            $auditLogService->record(
+                module: 'auth',
+                action: 'login_failed',
+                metadata: ['email' => $data['email']],
+                status: 'failed',
+                severity: 'warning',
+            );
 
             return ApiResponse::error(
                 message: 'بيانات الدخول غير صحيحة',
@@ -29,6 +36,15 @@ class AuthController extends Controller
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        auth()->setUser($user);
+
+        $auditLogService->record(
+            module: 'auth',
+            action: 'login_success',
+            auditable: $user,
+            metadata: ['email' => $user->email],
+        );
 
         return ApiResponse::success(
             data: [
@@ -39,8 +55,14 @@ class AuthController extends Controller
         );
     }
 
-    public function logout(Request $request)
+    public function logout(Request $request, AuditLogService $auditLogService)
     {
+        $auditLogService->record(
+            module: 'auth',
+            action: 'logout',
+            auditable: $request->user(),
+        );
+
         $request->user()->currentAccessToken()->delete();
 
         return ApiResponse::success(
@@ -55,16 +77,27 @@ class AuthController extends Controller
         );
     }
 
-    public function createUser(CreateUser $request)
+    public function createUser(CreateUser $request, AuditLogService $auditLogService)
     {
         $data = $request->validated();
 
-        $user = User::create([
-            "name" => $data['name'],
+        $user = AuditLogService::withoutModelEvents(fn () => User::create([
+            'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'role' => 'employee', // Set the default role to 'employee'
-        ]);
+        ]));
+
+        $auditLogService->record(
+            module: 'users_roles',
+            action: 'user_created',
+            auditable: $user,
+            metadata: [
+                'created_user_id' => $user->id,
+                'created_user_email' => $user->email,
+                'created_user_role' => $user->role,
+            ],
+        );
 
         return ApiResponse::success(
             data: $user,

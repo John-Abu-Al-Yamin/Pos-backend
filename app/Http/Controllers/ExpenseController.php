@@ -6,6 +6,7 @@ use App\Http\Requests\Expense\StoreExpenseRequest;
 use App\Http\Requests\Expense\UpdateExpenseRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\Expense;
+use App\Services\Audit\AuditLogService;
 use App\Services\Expense\ExpenseService;
 use Illuminate\Http\Request;
 
@@ -53,7 +54,21 @@ class ExpenseController extends Controller
     public function store(StoreExpenseRequest $request)
     {
         $data = $request->validated();
-        $expense = Expense::create($data);
+        $expense = AuditLogService::withoutModelEvents(fn () => Expense::create($data));
+
+        app(AuditLogService::class)->record(
+            module: 'expenses',
+            action: 'expense_created',
+            auditable: $expense,
+            metadata: [
+                'reference_number' => 'EXP-'.$expense->id,
+                'expense_category' => $expense->expense_category ?? null,
+                'expense_category_id' => $expense->expense_category_id ?? null,
+                'amount' => (float) $expense->amount,
+                'expense_date' => optional($expense->expense_date)->toDateString(),
+                'status' => $expense->status,
+            ],
+        );
 
         return ApiResponse::success(
             message: 'تم إنشاء المصروف بنجاح',
@@ -65,7 +80,7 @@ class ExpenseController extends Controller
     {
         $expense = Expense::find($id);
 
-        if (!$expense) {
+        if (! $expense) {
             return ApiResponse::error(
                 message: 'المصروف غير موجود',
                 statusCode: 404
@@ -82,24 +97,44 @@ class ExpenseController extends Controller
     {
         $expense = Expense::find($id);
 
-        if (!$expense) {
+        if (! $expense) {
             return ApiResponse::error(
                 message: 'المصروف غير موجود',
                 statusCode: 404
             );
         }
 
-        if (!$expense->isPending()) {
+        if (! $expense->isPending()) {
             return ApiResponse::error(
                 message: 'لا يمكن تعديل مصروف تم دفعه أو إلغاؤه.',
                 statusCode: 400
             );
         }
 
-        $expense->update($request->validated());
+        $validated = $request->validated();
+        $oldValues = $expense->only(array_keys($validated));
+
+        AuditLogService::withoutModelEvents(fn () => $expense->update($validated));
+
+        $freshExpense = $expense->fresh();
+
+        app(AuditLogService::class)->record(
+            module: 'expenses',
+            action: 'expense_updated',
+            auditable: $freshExpense,
+            oldValues: $oldValues,
+            newValues: $freshExpense->only(array_keys($validated)),
+            changedFields: array_keys($validated),
+            metadata: [
+                'reference_number' => 'EXP-'.$freshExpense->id,
+                'expense_category' => $freshExpense->expense_category ?? null,
+                'amount' => (float) $freshExpense->amount,
+                'status' => $freshExpense->status,
+            ],
+        );
 
         return ApiResponse::success(
-            data: $expense->fresh(),
+            data: $freshExpense,
             message: 'تم تحديث المصروف بنجاح'
         );
     }
@@ -108,21 +143,33 @@ class ExpenseController extends Controller
     {
         $expense = Expense::find($id);
 
-        if (!$expense) {
+        if (! $expense) {
             return ApiResponse::error(
                 message: 'المصروف غير موجود',
                 statusCode: 404
             );
         }
 
-        if (!$expense->isPending()) {
+        if (! $expense->isPending()) {
             return ApiResponse::error(
                 message: 'لا يمكن حذف مصروف تم دفعه أو إلغاؤه.',
                 statusCode: 400
             );
         }
 
-        $expense->delete();
+        AuditLogService::withoutModelEvents(fn () => $expense->delete());
+
+        app(AuditLogService::class)->record(
+            module: 'expenses',
+            action: 'expense_deleted',
+            metadata: [
+                'reference_number' => 'EXP-'.$expense->id,
+                'expense_category' => $expense->expense_category ?? null,
+                'amount' => (float) $expense->amount,
+                'status' => $expense->status,
+            ],
+            severity: 'warning',
+        );
 
         return ApiResponse::success(
             message: 'تم حذف المصروف بنجاح'
@@ -133,7 +180,7 @@ class ExpenseController extends Controller
     {
         $expense = Expense::find($id);
 
-        if (!$expense) {
+        if (! $expense) {
             return ApiResponse::error(
                 message: 'المصروف غير موجود',
                 statusCode: 404
@@ -159,7 +206,7 @@ class ExpenseController extends Controller
     {
         $expense = Expense::find($id);
 
-        if (!$expense) {
+        if (! $expense) {
             return ApiResponse::error(
                 message: 'المصروف غير موجود',
                 statusCode: 404

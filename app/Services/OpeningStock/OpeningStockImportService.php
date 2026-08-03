@@ -8,6 +8,7 @@ use App\Imports\OpeningStockImport;
 use App\Models\InventoryItem;
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Services\Audit\AuditLogService;
 use App\Services\Inventory\InventoryReceivingService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -19,6 +20,7 @@ use Maatwebsite\Excel\Facades\Excel;
 class OpeningStockImportService
 {
     private const MOVEMENT_TYPE = 'opening_stock';
+
     private const REFERENCE_TYPE = 'opening_stock_import';
 
     private array $summary = [];
@@ -34,11 +36,27 @@ class OpeningStockImportService
     {
         $this->resetSummary();
 
-        DB::transaction(function () use ($file, $templateType) {
+        AuditLogService::withoutModelEvents(fn () => DB::transaction(function () use ($file, $templateType) {
             $this->ensureOpeningStockHasNotBeenCompleted($templateType);
 
             Excel::import(new OpeningStockImport($this, $templateType), $file);
-        });
+        }));
+
+        app(AuditLogService::class)->record(
+            module: 'inventory',
+            action: 'opening_stock_imported',
+            metadata: [
+                'reference_number' => $this->summary['batch_reference'],
+                'template_type' => $templateType,
+                'total_rows' => $this->summary['total_rows'],
+                'quantity_rows' => $this->summary['quantity_rows'],
+                'serialized_rows' => $this->summary['serialized_rows'],
+                'quantity_units' => $this->summary['quantity_units'],
+                'serialized_units' => $this->summary['serialized_units'],
+                'stock_movements' => $this->summary['stock_movements'],
+            ],
+            severity: 'critical',
+        );
 
         return $this->summary;
     }
@@ -149,8 +167,8 @@ class OpeningStockImportService
                 'face_id_working' => ['nullable', 'boolean'],
                 'notes' => ['nullable', 'string'],
             ], [
-                'screen_condition.in' => 'screen_condition must be one of: ' . implode(', ', OpeningStockTemplateExport::SCREEN_CONDITION_OPTIONS) . '.',
-                'body_condition.in' => 'body_condition must be one of: ' . implode(', ', OpeningStockTemplateExport::BODY_CONDITION_OPTIONS) . '.',
+                'screen_condition.in' => 'screen_condition must be one of: '.implode(', ', OpeningStockTemplateExport::SCREEN_CONDITION_OPTIONS).'.',
+                'body_condition.in' => 'body_condition must be one of: '.implode(', ', OpeningStockTemplateExport::BODY_CONDITION_OPTIONS).'.',
                 'fingerprint_working.boolean' => 'fingerprint_working must be Yes or No.',
                 'face_id_working.boolean' => 'face_id_working must be Yes or No.',
             ]);
@@ -164,6 +182,7 @@ class OpeningStockImportService
 
             if ($validator->fails()) {
                 $this->addValidationErrors($errors, $rowNumber, $data, $validator->errors()->toArray());
+
                 continue;
             }
 
@@ -409,9 +428,9 @@ class OpeningStockImportService
 
     private function generateValidMobileIdentifier(): string
     {
-        $base = '35' . str_pad((string) random_int(0, 999999999999), 12, '0', STR_PAD_LEFT);
+        $base = '35'.str_pad((string) random_int(0, 999999999999), 12, '0', STR_PAD_LEFT);
 
-        return $base . $this->luhnCheckDigit($base);
+        return $base.$this->luhnCheckDigit($base);
     }
 
     private function luhnCheckDigit(string $number): int
@@ -465,7 +484,7 @@ class OpeningStockImportService
 
     private function notesWithRowNumber(array $row): ?string
     {
-        $prefix = 'Opening stock import row ' . $row['row_number'];
+        $prefix = 'Opening stock import row '.$row['row_number'];
 
         return $row['notes'] ? "{$prefix}: {$row['notes']}" : $prefix;
     }

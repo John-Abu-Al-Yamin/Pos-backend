@@ -5,6 +5,7 @@ namespace App\Services\Salary;
 use App\Models\SalaryAssignment;
 use App\Models\SalaryPayment;
 use App\Models\User;
+use App\Services\Audit\AuditLogService;
 use Carbon\Carbon;
 use DomainException;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,7 @@ class SalaryPaymentService
             throw new DomainException('لا يمكن إنشاء دفعة راتب بعد يوم 5 من الشهر');
         }
 
-        return DB::transaction(function () use ($data, $now) {
+        $payment = AuditLogService::withoutModelEvents(fn () => DB::transaction(function () use ($data, $now) {
             $user = User::findOrFail($data['user_id']);
 
             $existingDraft = SalaryPayment::forUser($user->id)
@@ -35,7 +36,7 @@ class SalaryPaymentService
                 ->orderBy('created_at', 'desc')
                 ->first();
 
-            if (!$assignment) {
+            if (! $assignment) {
                 throw new DomainException('لا يوجد تخصيص راتب نشط لهذا المستخدم.');
             }
 
@@ -61,7 +62,23 @@ class SalaryPaymentService
             $payment->fresh()->recalculateTotal();
 
             return $payment->fresh();
-        });
+        }));
+
+        app(AuditLogService::class)->record(
+            module: 'salaries',
+            action: 'salary_payment_created',
+            auditable: $payment,
+            metadata: [
+                'reference_number' => $payment->payment_number,
+                'affected_user_id' => $payment->user_id,
+                'salary_assignment_id' => $payment->salary_assignment_id,
+                'period_start' => optional($payment->period_start)->toDateString(),
+                'period_end' => optional($payment->period_end)->toDateString(),
+                'total_amount' => (float) $payment->total_amount,
+            ],
+        );
+
+        return $payment;
     }
 
     private function createBaseSalaryItem(SalaryPayment $payment, SalaryAssignment $assignment): void
@@ -79,8 +96,8 @@ class SalaryPaymentService
 
     public function confirmPayment(SalaryPayment $payment): SalaryPayment
     {
-        return DB::transaction(function () use ($payment) {
-            if (!$payment->isDraft()) {
+        $confirmedPayment = AuditLogService::withoutModelEvents(fn () => DB::transaction(function () use ($payment) {
+            if (! $payment->isDraft()) {
                 throw new DomainException('يمكن تأكيد المدفوعات المسودة فقط.');
             }
 
@@ -103,18 +120,49 @@ class SalaryPaymentService
             ]);
 
             return $fresh->fresh();
-        });
+        }));
+
+        app(AuditLogService::class)->record(
+            module: 'salaries',
+            action: 'salary_payment_confirmed',
+            auditable: $confirmedPayment,
+            metadata: [
+                'reference_number' => $confirmedPayment->payment_number,
+                'affected_user_id' => $confirmedPayment->user_id,
+                'total_amount' => (float) $confirmedPayment->total_amount,
+                'payment_date' => optional($confirmedPayment->payment_date)->toDateString(),
+                'confirmed_by' => $confirmedPayment->confirmed_by,
+            ],
+            severity: 'critical',
+        );
+
+        return $confirmedPayment;
     }
 
     public function cancelPayment(SalaryPayment $payment): SalaryPayment
     {
-        if (!$payment->isDraft()) {
+        if (! $payment->isDraft()) {
             throw new DomainException('يمكن إلغاء المدفوعات المسودة فقط.');
         }
 
-        $payment->update(['status' => 'cancelled']);
+        AuditLogService::withoutModelEvents(fn () => $payment->update(['status' => 'cancelled']));
 
-        return $payment->fresh();
+        $cancelledPayment = $payment->fresh();
+
+        app(AuditLogService::class)->record(
+            module: 'salaries',
+            action: 'salary_payment_cancelled',
+            auditable: $cancelledPayment,
+            metadata: [
+                'reference_number' => $cancelledPayment->payment_number,
+                'affected_user_id' => $cancelledPayment->user_id,
+                'total_amount' => (float) $cancelledPayment->total_amount,
+                'reason' => $cancelledPayment->notes,
+            ],
+            severity: 'warning',
+        );
+
+        return $cancelledPayment;
     }
 
     private function generatePaymentNumber(): string
@@ -128,6 +176,6 @@ class SalaryPaymentService
 
         $next = $lastId + 1;
 
-        return 'SAL-' . str_pad($next, 6, '0', STR_PAD_LEFT);
+        return 'SAL-'.str_pad($next, 6, '0', STR_PAD_LEFT);
     }
 }

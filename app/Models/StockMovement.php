@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Models\Builders\StockMovementBuilder;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use RuntimeException;
 
 class StockMovement extends Model
 {
@@ -22,6 +25,17 @@ class StockMovement extends Model
     protected $casts = [
         'unit_cost' => 'decimal:2',
     ];
+
+    protected static function booted(): void
+    {
+        static::updating(fn () => throw new RuntimeException('Stock movements are append-only and cannot be updated.'));
+        static::deleting(fn () => throw new RuntimeException('Stock movements are append-only and cannot be deleted.'));
+    }
+
+    public function newEloquentBuilder($query): Builder
+    {
+        return new StockMovementBuilder($query);
+    }
 
     public function product()
     {

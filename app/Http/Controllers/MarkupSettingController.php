@@ -6,12 +6,14 @@ use App\Http\Requests\MarkupSetting\StoreMarkupSettingRequest;
 use App\Http\Requests\MarkupSetting\UpdateMarkupSettingRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\MarkupSetting;
+use App\Services\Audit\AuditLogService;
 
 class MarkupSettingController extends Controller
 {
     public function index()
     {
         $settings = MarkupSetting::all();
+
         return ApiResponse::success(
             message: 'تم جلب إعدادات الربح بنجاح',
             data: $settings
@@ -22,6 +24,7 @@ class MarkupSettingController extends Controller
     {
         $data = $request->validated();
         $setting = MarkupSetting::create($data);
+
         return ApiResponse::success(
             message: 'تم إنشاء إعداد الربح بنجاح',
             data: $setting,
@@ -33,7 +36,7 @@ class MarkupSettingController extends Controller
     {
         $setting = MarkupSetting::find($id);
 
-        if (!$setting) {
+        if (! $setting) {
             return ApiResponse::error(
                 message: 'إعداد الربح غير موجود',
                 statusCode: 404
@@ -50,7 +53,7 @@ class MarkupSettingController extends Controller
     {
         $setting = MarkupSetting::find($id);
 
-        if (!$setting) {
+        if (! $setting) {
             return ApiResponse::error(
                 message: 'إعداد الربح غير موجود',
                 statusCode: 404
@@ -58,7 +61,23 @@ class MarkupSettingController extends Controller
         }
 
         $data = $request->validated();
-        $setting->update($data);
+        $oldPercentage = $setting->profit_percentage;
+
+        AuditLogService::withoutModelEvents(fn () => $setting->update($data));
+
+        app(AuditLogService::class)->record(
+            module: 'products',
+            action: 'product_price_changed',
+            auditable: $setting->fresh(),
+            oldValues: ['profit_percentage' => $oldPercentage],
+            newValues: ['profit_percentage' => $setting->fresh()->profit_percentage],
+            changedFields: ['profit_percentage'],
+            metadata: [
+                'product_type' => $setting->fresh()->product_type,
+                'pricing_rule_id' => $setting->id,
+            ],
+            severity: 'warning',
+        );
 
         return ApiResponse::success(
             data: $setting,
@@ -70,7 +89,7 @@ class MarkupSettingController extends Controller
     {
         $setting = MarkupSetting::find($id);
 
-        if (!$setting) {
+        if (! $setting) {
             return ApiResponse::error(
                 message: 'إعداد الربح غير موجود',
                 statusCode: 404

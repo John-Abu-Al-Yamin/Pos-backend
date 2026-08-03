@@ -9,6 +9,7 @@ use App\Http\Requests\Products\UpdateProductRequest;
 use App\Http\Responses\ApiResponse;
 use App\Imports\ProductsImport;
 use App\Models\Product;
+use App\Services\Audit\AuditLogService;
 use App\Services\Product\ProductImportService;
 use App\Services\Product\ProductService;
 use Illuminate\Http\Request;
@@ -17,9 +18,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ProductController extends Controller
 {
-    public function __construct(private readonly ProductService $productService)
-    {
-    }
+    public function __construct(private readonly ProductService $productService) {}
 
     public function store(StoreProductRequest $request)
     {
@@ -36,17 +35,13 @@ class ProductController extends Controller
         $perPage = (int) $request->input('per_page', 10);
 
         $products = Product::with(['category', 'brand'])
-            ->when($request->filled('search'), fn($q) =>
-                $q->where('name', 'like', '%' . $request->search . '%')
+            ->when($request->filled('search'), fn ($q) => $q->where('name', 'like', '%'.$request->search.'%')
             )
-            ->when($request->filled('category_id'), fn($q) =>
-                $q->where('category_id', $request->category_id)
+            ->when($request->filled('category_id'), fn ($q) => $q->where('category_id', $request->category_id)
             )
-            ->when($request->filled('brand_id'), fn($q) =>
-                $q->where('brand_id', $request->brand_id)
+            ->when($request->filled('brand_id'), fn ($q) => $q->where('brand_id', $request->brand_id)
             )
-            ->when($request->filled('type'), fn($q) =>
-                $q->where('type', $request->type)
+            ->when($request->filled('type'), fn ($q) => $q->where('type', $request->type)
             )
             ->paginate($perPage);
 
@@ -60,7 +55,7 @@ class ProductController extends Controller
     {
         $product = Product::with(['category', 'brand'])->find($id);
 
-        if (!$product) {
+        if (! $product) {
             return ApiResponse::error(
                 message: 'Product not found',
                 statusCode: 404
@@ -77,7 +72,7 @@ class ProductController extends Controller
     {
         $product = Product::find($id);
 
-        if (!$product) {
+        if (! $product) {
             return ApiResponse::error(
                 message: 'Product not found',
                 statusCode: 404
@@ -96,7 +91,7 @@ class ProductController extends Controller
     {
         $product = Product::find($id);
 
-        if (!$product) {
+        if (! $product) {
             return ApiResponse::error(
                 message: 'Product not found',
                 statusCode: 404
@@ -115,7 +110,7 @@ class ProductController extends Controller
         $startedAt = microtime(true);
         Log::info('Product import started');
 
-        Excel::import(new ProductsImport($service), $request->file('file'));
+        AuditLogService::withoutModelEvents(fn () => Excel::import(new ProductsImport($service), $request->file('file')));
 
         $summary = $service->summary();
         $duration = round(microtime(true) - $startedAt, 2);
@@ -128,6 +123,20 @@ class ProductController extends Controller
             'failed' => $summary['failed'],
         ]);
 
+        app(AuditLogService::class)->record(
+            module: 'products',
+            action: 'products_imported',
+            metadata: [
+                'reference_number' => 'PRODUCT-IMPORT-'.now()->format('YmdHis'),
+                'total_rows' => $summary['total_rows'],
+                'created' => $summary['created'],
+                'skipped' => $summary['skipped'],
+                'failed' => $summary['failed'],
+                'duration_seconds' => $duration,
+            ],
+            severity: $summary['failed'] > 0 ? 'warning' : 'info',
+        );
+
         return ApiResponse::success(
             message: 'Product import completed',
             data: array_merge($summary, ['duration_seconds' => $duration])
@@ -136,6 +145,6 @@ class ProductController extends Controller
 
     public function importTemplate()
     {
-        return Excel::download(new ProductImportTemplateExport(), 'product-import-template.xlsx');
+        return Excel::download(new ProductImportTemplateExport, 'product-import-template.xlsx');
     }
 }

@@ -21,16 +21,18 @@ class PurchaseHeaderController extends Controller
         $purchase = $this->purchaseHeaderService->createDraft(
             $request->validated()
         );
+
         return ApiResponse::success(
             message: 'تم إنشاء فاتورة الشراء بنجاح',
             data: $purchase
         );
     }
+
     public function update(UpdatePurchaseHeaderRequest $request, int $id)
     {
         $purchase = PurchaseHeader::find($id);
 
-        if (!$purchase) {
+        if (! $purchase) {
             return ApiResponse::error(
                 message: 'فاتورة الشراء غير موجودة',
                 statusCode: 404
@@ -59,7 +61,7 @@ class PurchaseHeaderController extends Controller
     {
         $purchase = PurchaseHeader::find($id);
 
-        if (!$purchase) {
+        if (! $purchase) {
             return ApiResponse::error(
                 message: 'فاتورة الشراء غير موجودة',
                 statusCode: 404
@@ -85,7 +87,7 @@ class PurchaseHeaderController extends Controller
     {
         $purchase = PurchaseHeader::find($id);
 
-        if (!$purchase) {
+        if (! $purchase) {
             return ApiResponse::error(
                 message: 'فاتورة الشراء غير موجودة',
                 statusCode: 404
@@ -118,7 +120,7 @@ class PurchaseHeaderController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('purchaseHeader_number', 'like', "%{$search}%")
-                  ->orWhere('supplier_invoice_number', 'like', "%{$search}%");
+                    ->orWhere('supplier_invoice_number', 'like', "%{$search}%");
             });
         }
 
@@ -150,7 +152,7 @@ class PurchaseHeaderController extends Controller
     {
         $purchase = PurchaseHeader::with(['supplier', 'createdBy', 'items.product'])->find($id);
 
-        if (!$purchase) {
+        if (! $purchase) {
             return ApiResponse::error(
                 message: 'فاتورة الشراء غير موجودة',
                 statusCode: 404
@@ -167,21 +169,28 @@ class PurchaseHeaderController extends Controller
     {
         $purchase = PurchaseHeader::find($id);
 
-        if (!$purchase) {
+        if (! $purchase) {
             return ApiResponse::error(
                 message: 'فاتورة الشراء غير موجودة',
                 statusCode: 404
             );
         }
 
-        if (!$purchase->isDraft()) {
+        if (! $purchase->isDraft()) {
             return ApiResponse::error(
                 message: 'لا يمكن حذف فاتورة مكتملة أو ملغاة.',
                 statusCode: 400
             );
         }
 
-        $purchase->delete();
+        try {
+            $this->purchaseHeaderService->deleteDraft($purchase);
+        } catch (\Exception $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 400
+            );
+        }
 
         return ApiResponse::success(
             message: 'تم حذف فاتورة الشراء بنجاح'

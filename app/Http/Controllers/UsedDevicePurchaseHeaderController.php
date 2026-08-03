@@ -12,15 +12,16 @@ use Illuminate\Http\Request;
 class UsedDevicePurchaseHeaderController extends Controller
 {
     //
-        public function __construct(
+    public function __construct(
         private PurchaseUsedDeviceService $purchaseUsedDeviceService
-        ) {}
+    ) {}
 
     public function store(StoreUsedDevicePurchaseHeaderRequest $request)
     {
         $purchase = $this->purchaseUsedDeviceService->createDraft(
             $request->validated()
         );
+
         return ApiResponse::success(
             message: 'تم إنشاء فاتورة شراء الأجهزة المستعملة بنجاح',
             data: $purchase
@@ -31,7 +32,7 @@ class UsedDevicePurchaseHeaderController extends Controller
     {
         $purchase = UsedDevicePurchaseHeader::find($id);
 
-        if (!$purchase) {
+        if (! $purchase) {
             return ApiResponse::error(
                 message: 'فاتورة شراء الأجهزة المستعملة غير موجودة',
                 statusCode: 404
@@ -60,7 +61,7 @@ class UsedDevicePurchaseHeaderController extends Controller
     {
         $purchase = UsedDevicePurchaseHeader::find($id);
 
-        if (!$purchase) {
+        if (! $purchase) {
             return ApiResponse::error(
                 message: 'فاتورة شراء الأجهزة المستعملة غير موجودة',
                 statusCode: 404
@@ -86,7 +87,7 @@ class UsedDevicePurchaseHeaderController extends Controller
     {
         $purchase = UsedDevicePurchaseHeader::find($id);
 
-        if (!$purchase) {
+        if (! $purchase) {
             return ApiResponse::error(
                 message: 'فاتورة شراء الأجهزة المستعملة غير موجودة',
                 statusCode: 404
@@ -107,6 +108,7 @@ class UsedDevicePurchaseHeaderController extends Controller
             data: $purchase->fresh()
         );
     }
+
     public function index(Request $request)
     {
         $perPage = (int) $request->input('per_page', 10);
@@ -120,11 +122,11 @@ class UsedDevicePurchaseHeaderController extends Controller
         );
     }
 
-        public function show(int $id)
+    public function show(int $id)
     {
         $purchase = UsedDevicePurchaseHeader::with(['customer', 'createdBy', 'usedDevicePurchaseItems.product'])->find($id);
 
-        if (!$purchase) {
+        if (! $purchase) {
             return ApiResponse::error(
                 message: 'فاتورة شراء الأجهزة المستعملة غير موجودة',
                 statusCode: 404
@@ -141,25 +143,31 @@ class UsedDevicePurchaseHeaderController extends Controller
     {
         $purchase = UsedDevicePurchaseHeader::find($id);
 
-        if (!$purchase) {
+        if (! $purchase) {
             return ApiResponse::error(
                 message: 'فاتورة شراء الأجهزة المستعملة غير موجودة',
                 statusCode: 404
             );
         }
 
-        if (!$purchase->isDraft()) {
+        if (! $purchase->isDraft()) {
             return ApiResponse::error(
                 message: 'لا يمكن حذف فاتورة مكتملة أو ملغاة.',
                 statusCode: 400
             );
         }
 
-        $purchase->delete();
+        try {
+            $this->purchaseUsedDeviceService->deleteDraft($purchase);
+        } catch (\DomainException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 400
+            );
+        }
 
         return ApiResponse::success(
             message: 'تم حذف فاتورة شراء الأجهزة المستعملة بنجاح'
         );
     }
-
 }

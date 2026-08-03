@@ -2,18 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\MaintenanceHeader\StoreMaintenanceHeaderRequest;
 use App\Http\Requests\MaintenanceHeader\UpdateMaintenanceHeaderRequest;
 use App\Http\Requests\MaintenanceHeader\UpdateMaintenanceStatusRequest;
 use App\Http\Responses\ApiResponse;
 use App\Models\MaintenanceHeader;
 use App\Services\Maintenance\MaintenanceStatusService;
+use App\Services\Maintenance\MaintenanceTicketService;
 use Illuminate\Http\Request;
 
 class MaintenanceHeaderController extends Controller
 {
     public function __construct(
-        private MaintenanceStatusService $maintenanceStatusService
+        private MaintenanceStatusService $maintenanceStatusService,
+        private MaintenanceTicketService $maintenanceTicketService
     ) {}
 
     public function index(Request $request)
@@ -25,19 +26,19 @@ class MaintenanceHeaderController extends Controller
             'maintenanceDevice.product',
             'createdBy',
         ])->withCount(['operations', 'usedParts'])
-          ->withSum('operations', 'cost')
-          ->withSum('usedParts', 'total_price');
+            ->withSum('operations', 'cost')
+            ->withSum('usedParts', 'total_price');
 
         if ($request->filled('search')) {
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('ticket_number', 'like', "%{$search}%")
-                  ->orWhereHas('customer', function ($cq) use ($search) {
-                      $cq->where('name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('maintenanceDevice', function ($dq) use ($search) {
-                      $dq->where('serial_number', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('customer', function ($cq) use ($search) {
+                        $cq->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('maintenanceDevice', function ($dq) use ($search) {
+                        $dq->where('serial_number', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -74,10 +75,10 @@ class MaintenanceHeaderController extends Controller
             'operations',
             'usedParts.product',
         ])->withSum('operations', 'cost')
-          ->withSum('usedParts', 'total_price')
-          ->find($id);
+            ->withSum('usedParts', 'total_price')
+            ->find($id);
 
-        if (!$header) {
+        if (! $header) {
             return ApiResponse::error(
                 message: 'تذكرة الصيانة غير موجودة',
                 statusCode: 404
@@ -94,7 +95,7 @@ class MaintenanceHeaderController extends Controller
     {
         $header = MaintenanceHeader::find($id);
 
-        if (!$header) {
+        if (! $header) {
             return ApiResponse::error(
                 message: 'تذكرة الصيانة غير موجودة',
                 statusCode: 404
@@ -124,7 +125,7 @@ class MaintenanceHeaderController extends Controller
     {
         $header = MaintenanceHeader::find($id);
 
-        if (!$header) {
+        if (! $header) {
             return ApiResponse::error(
                 message: 'تذكرة الصيانة غير موجودة',
                 statusCode: 404
@@ -158,21 +159,28 @@ class MaintenanceHeaderController extends Controller
     {
         $header = MaintenanceHeader::find($id);
 
-        if (!$header) {
+        if (! $header) {
             return ApiResponse::error(
                 message: 'تذكرة الصيانة غير موجودة',
                 statusCode: 404
             );
         }
 
-        if (!$header->isPending()) {
+        if (! $header->isPending()) {
             return ApiResponse::error(
                 message: 'لا يمكن حذف تذكرة صيانة إلا في حالة قيد الانتظار.',
                 statusCode: 400
             );
         }
 
-        $header->delete();
+        try {
+            $this->maintenanceTicketService->deletePending($header);
+        } catch (\DomainException $e) {
+            return ApiResponse::error(
+                message: $e->getMessage(),
+                statusCode: 400
+            );
+        }
 
         return ApiResponse::success(
             message: 'تم حذف تذكرة الصيانة بنجاح'

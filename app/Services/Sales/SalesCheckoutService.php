@@ -2,12 +2,13 @@
 
 namespace App\Services\Sales;
 
-use App\Models\SalesHeader;
-use App\Models\SalesItem;
-use App\Models\Product;
 use App\Models\InventoryItem;
 use App\Models\InventoryQuantity;
+use App\Models\Product;
+use App\Models\SalesHeader;
+use App\Models\SalesItem;
 use App\Models\StockMovement;
+use App\Services\Audit\AuditLogService;
 use App\Services\Pricing\PricingService;
 use Illuminate\Support\Facades\DB;
 
@@ -19,7 +20,7 @@ class SalesCheckoutService
 
     public function checkout(array $data)
     {
-        return DB::transaction(function () use ($data) {
+        $sale = AuditLogService::withoutModelEvents(fn () => DB::transaction(function () use ($data) {
 
             $subtotal = 0;
             $preparedItems = [];
@@ -78,7 +79,7 @@ class SalesCheckoutService
                         ->first();
 
                     if (! $inventoryQuantity) {
-                        throw new \RuntimeException('Product not found in inventory: ' . $product->name);
+                        throw new \RuntimeException('Product not found in inventory: '.$product->name);
                     }
 
                     $costPrice = $this->pricingService->resolveCostPrice($product);
@@ -159,7 +160,43 @@ class SalesCheckoutService
             }
 
             return $sale->load('items.product', 'items.inventoryItem', 'customer');
-        });
+        }));
+
+        app(AuditLogService::class)->record(
+            module: 'sales',
+            action: 'sale_completed',
+            auditable: $sale,
+            metadata: [
+                'invoice_number' => $sale->invoice_number,
+                'customer_id' => $sale->customer_id,
+                'subtotal' => (float) $sale->subtotal,
+                'discount_amount' => (float) $sale->discount_amount,
+                'total_amount' => (float) $sale->total_amount,
+                'payment_method' => $data['payment_method'] ?? null,
+                'items_count' => $sale->items->count(),
+            ],
+            severity: 'critical',
+        );
+
+        app(AuditLogService::class)->record(
+            module: 'inventory',
+            action: 'stock_adjusted',
+            auditable: $sale,
+            metadata: [
+                'reason' => 'sale_completed',
+                'reference_number' => $sale->invoice_number,
+                'movement' => 'out',
+                'items' => $sale->items->map(fn ($item) => [
+                    'product_id' => $item->product_id,
+                    'inventory_item_id' => $item->inventory_item_id,
+                    'quantity' => (float) $item->quantity,
+                    'unit_cost' => (float) $item->unit_cost,
+                ])->values()->all(),
+            ],
+            severity: 'critical',
+        );
+
+        return $sale;
     }
 
     private function validatePrice(float $unitPrice, float $costPrice): void
@@ -171,6 +208,6 @@ class SalesCheckoutService
 
     private function generateInvoiceNumber(): string
     {
-        return 'SAL-' . date('YmdHis') . str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
+        return 'SAL-'.date('YmdHis').str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
     }
 }

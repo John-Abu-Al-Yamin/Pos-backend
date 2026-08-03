@@ -55,7 +55,7 @@ class SalaryPaymentController extends Controller
     {
         $payment = SalaryPayment::with(['user', 'assignment', 'items', 'creator', 'confirmedBy'])->find($id);
 
-        if (!$payment) {
+        if (! $payment) {
             return ApiResponse::error(message: 'دفعة الراتب غير موجودة', statusCode: 404);
         }
 
@@ -69,11 +69,11 @@ class SalaryPaymentController extends Controller
     {
         $payment = SalaryPayment::find($id);
 
-        if (!$payment) {
+        if (! $payment) {
             return ApiResponse::error(message: 'دفعة الراتب غير موجودة', statusCode: 404);
         }
 
-        if (!$payment->isDraft()) {
+        if (! $payment->isDraft()) {
             return ApiResponse::error(message: 'يمكن تعديل المدفوعات المسودة فقط.', statusCode: 422);
         }
 
@@ -90,15 +90,15 @@ class SalaryPaymentController extends Controller
     {
         $payment = SalaryPayment::find($id);
 
-        if (!$payment) {
+        if (! $payment) {
             return ApiResponse::error(message: 'دفعة الراتب غير موجودة', statusCode: 404);
         }
 
-        if (!$payment->isDraft()) {
+        if (! $payment->isDraft()) {
             return ApiResponse::error(message: 'يمكن إلغاء المدفوعات المسودة فقط.', statusCode: 422);
         }
 
-        $payment->update(['status' => 'cancelled']);
+        $this->salaryPaymentService->cancelPayment($payment);
 
         return ApiResponse::success(message: 'تم إلغاء دفعة الراتب بنجاح');
     }
@@ -107,7 +107,7 @@ class SalaryPaymentController extends Controller
     {
         $payment = SalaryPayment::find($id);
 
-        if (!$payment) {
+        if (! $payment) {
             return ApiResponse::error(message: 'دفعة الراتب غير موجودة', statusCode: 404);
         }
 
@@ -128,7 +128,7 @@ class SalaryPaymentController extends Controller
     {
         $payment = SalaryPayment::find($id);
 
-        if (!$payment) {
+        if (! $payment) {
             return ApiResponse::error(message: 'دفعة الراتب غير موجودة', statusCode: 404);
         }
 
