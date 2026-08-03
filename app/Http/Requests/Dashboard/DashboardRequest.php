@@ -23,6 +23,26 @@ class DashboardRequest extends FormRequest
         $this->normalizeReportPeriod();
     }
 
+    protected function resolvePeriodDates(string $period): array
+    {
+        $today = now();
+
+        return match ($period) {
+            'today' => [
+                $today->copy()->toDateString(),
+                $today->copy()->toDateString(),
+            ],
+            'this_week' => [
+                $today->copy()->subDays(6)->toDateString(),
+                $today->copy()->toDateString(),
+            ],
+            default => [
+                $today->copy()->startOfMonth()->toDateString(),
+                $today->copy()->toDateString(),
+            ],
+        };
+    }
+
     public function rules(): array
     {
         return [

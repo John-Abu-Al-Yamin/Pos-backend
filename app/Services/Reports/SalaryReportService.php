@@ -17,9 +17,9 @@ class SalaryReportService
         return [
             'basis' => [
                 'date_column' => 'payment_date',
-                'fallback_date_column' => 'created_at for draft/cancelled payments without payment_date',
-                'description' => 'Confirmed salary expense uses payment_date; status reporting includes draft/cancelled records by created_at when payment_date is not set.',
-                'supported_statuses' => ['draft', 'confirmed', 'cancelled'],
+                'fallback_date_column' => 'created_at للدفعات المسودة والملغية التي لا تحتوي على تاريخ دفع',
+                'description' => 'يتم احتساب مصروف الرواتب المؤكد باستخدام تاريخ الدفع (payment_date)؛ وتشمل تقارير الحالة سجلات المسودة والملغية عبر تاريخ الإنشاء (created_at) عندما لا يكون تاريخ الدفع محدداً.',
+                'supported_statuses' => ['مسودة', 'مؤكد', 'ملغي'],
             ],
             'summary' => $this->getSummary($dateFrom, $dateTo, $status, $userId),
             'by_employee' => $this->getByEmployee($dateFrom, $dateTo, $status, $userId),
@@ -101,7 +101,7 @@ class SalaryReportService
 
         return $this->basePaymentQuery($dateFrom, $dateTo, $status, $userId)
             ->selectRaw("
-                DATE_FORMAT(COALESCE(payment_date, created_at), '$dateFormat') as period,
+                DATE_FORMAT(COALESCE(salary_payments.payment_date, salary_payments.created_at), '$dateFormat') as period,
                 COALESCE(SUM(total_amount), 0) as total_amount,
                 COUNT(*) as payment_count
             ")
@@ -154,8 +154,8 @@ class SalaryReportService
     private function basePaymentQuery(Carbon $dateFrom, Carbon $dateTo, ?string $status = null, ?int $userId = null)
     {
         $query = DB::table('salary_payments')
-            ->where(DB::raw('COALESCE(payment_date, created_at)'), '>=', $dateFrom->toDateString())
-            ->where(DB::raw('COALESCE(payment_date, created_at)'), '<', $dateTo->copy()->addDay()->toDateString());
+            ->where(DB::raw('COALESCE(salary_payments.payment_date, salary_payments.created_at)'), '>=', $dateFrom->toDateString())
+            ->where(DB::raw('COALESCE(salary_payments.payment_date, salary_payments.created_at)'), '<', $dateTo->copy()->addDay()->toDateString());
 
         if ($status) {
             $query->where('status', $status);

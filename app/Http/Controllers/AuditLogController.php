@@ -4,54 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Responses\ApiResponse;
 use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class AuditLogController extends Controller
 {
-    private const KNOWN_ACTIONS = [
-        'created',
-        'updated',
-        'deleted',
-        'force_deleted',
-        'login_success',
-        'login_failed',
-        'logout',
-        'user_created',
-        'role_changed',
-        'sale_completed',
-        'purchase_completed',
-        'purchase_cancelled',
-        'purchase_deleted',
-        'used_device_purchase_deleted',
-        'sales_return_created',
-        'refund_processed',
-        'purchase_return_created',
-        'stock_adjusted',
-        'stock_correction',
-        'inventory_cost_changed',
-        'opening_stock_imported',
-        'expense_created',
-        'expense_updated',
-        'expense_deleted',
-        'expense_paid',
-        'expense_cancelled',
-        'salary_payment_created',
-        'salary_payment_confirmed',
-        'salary_payment_cancelled',
-        'maintenance_created',
-        'maintenance_status_changed',
-        'maintenance_deleted',
-        'repair_completed',
-        'spare_parts_used',
-        'spare_parts_updated',
-        'spare_parts_removed',
-        'product_price_changed',
-        'product_cost_changed',
-        'products_imported',
-    ];
-
     public function index(Request $request)
     {
         $perPage = min(
@@ -125,15 +84,10 @@ class AuditLogController extends Controller
     {
         return ApiResponse::success(
             data: [
-                'modules' => collect(config('audit.models', []))
-                    ->values()
-                    ->push('auth')
-                    ->unique()
-                    ->sort()
-                    ->values(),
-                'actions' => collect(self::KNOWN_ACTIONS)->sort()->values(),
-                'statuses' => ['success', 'failed'],
-                'severities' => ['info', 'warning', 'critical'],
+                'users' => User::query()
+                    ->select('id', 'name', 'email')
+                    ->orderBy('name')
+                    ->get(),
             ],
             message: 'Audit log filters fetched successfully'
         );
@@ -151,10 +105,7 @@ class AuditLogController extends Controller
 
         return AuditLog::query()
             ->when($request->filled('user_id'), fn (Builder $query) => $query->where('user_id', $request->integer('user_id')))
-            ->when($request->filled('module'), fn (Builder $query) => $query->where('module', $request->input('module')))
-            ->when($request->filled('action'), fn (Builder $query) => $query->where('action', $request->input('action')))
-            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->input('status')))
-            ->when($request->filled('severity'), fn (Builder $query) => $query->where('severity', $request->input('severity')))
+            ->when($request->filled('actions'), fn (Builder $query) => $query->whereIn('action', (array) $request->input('actions')))
             ->when($request->filled('ip_address'), fn (Builder $query) => $query->where('ip_address', $request->input('ip_address')))
             ->when($request->filled('auditable_type'), fn (Builder $query) => $query->where('auditable_type', $request->input('auditable_type')))
             ->when($request->filled('auditable_id'), fn (Builder $query) => $query->where('auditable_id', $request->input('auditable_id')))
