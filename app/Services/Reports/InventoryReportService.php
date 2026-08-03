@@ -8,7 +8,7 @@ use Illuminate\Support\Carbon;
 
 class InventoryReportService
 {
-    public function generate(array $filters): array
+    public function generate(array $filters, int $page = 1, int $perPage = 15): array
     {
         $categoryId = $filters['category_id'] ?? null;
         $brandId = $filters['brand_id'] ?? null;
@@ -24,7 +24,7 @@ class InventoryReportService
 
         return [
             'stock_value' => $this->getStockValue($categoryId, $brandId, $productType),
-            'stock_summary' => $this->getStockSummary($categoryId, $brandId, $productType),
+            'stock_summary' => $this->getStockSummary($categoryId, $brandId, $productType, $page, $perPage),
             'low_stock' => $this->getLowStock($categoryId, $brandId),
             'by_product_type' => $this->getByProductType($categoryId, $brandId),
             'stock_movement_summary' => $this->getStockMovementSummary(
@@ -101,6 +101,8 @@ class InventoryReportService
         ?int $categoryId = null,
         ?int $brandId = null,
         ?string $productType = null,
+        int $page = 1,
+        int $perPage = 15,
     ): array {
         $availableItemsSub = DB::table('inventory_items')
             ->where('status', 'available')
@@ -142,16 +144,29 @@ class InventoryReportService
 
         $products = $query->get();
 
+        $totalProducts = $products->count();
+
         $totalItems = $products->sum(function ($p) {
             return $p->product_type === 'mobile'
                 ? (int) $p->mobile_available_count
                 : (float) $p->stock_quantity;
         });
 
+        $perPage = max(1, $perPage);
+        $lastPage = max(1, (int) ceil($totalProducts / $perPage));
+        $currentPage = max(1, min($page, $lastPage));
+
+        $pageProducts = $products
+            ->forPage($currentPage, $perPage)
+            ->values();
+
+        $from = $totalProducts === 0 ? null : ($currentPage - 1) * $perPage + 1;
+        $to = $totalProducts === 0 ? null : min($currentPage * $perPage, $totalProducts);
+
         return [
-            'total_products' => $products->count(),
+            'total_products' => $totalProducts,
             'total_stock_items' => $totalItems,
-            'products' => $products->map(function ($p) {
+            'products' => $pageProducts->map(function ($p) {
                 $availableQty = $p->product_type === 'mobile'
                     ? (int) $p->mobile_available_count
                     : (float) $p->stock_quantity;
@@ -173,6 +188,14 @@ class InventoryReportService
                     'is_low_stock' => $p->product_type !== 'mobile' && (float) $p->stock_quantity <= (int) $p->min_stock,
                 ];
             })->toArray(),
+            'pagination' => [
+                'current_page' => $currentPage,
+                'per_page' => $perPage,
+                'total' => $totalProducts,
+                'last_page' => $lastPage,
+                'from' => $from,
+                'to' => $to,
+            ],
         ];
     }
 

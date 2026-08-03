@@ -22,8 +22,8 @@ class ExpenseReportService
                 'type' => $basis,
                 'date_column' => $dateColumn,
                 'description' => $basis === 'cash'
-                    ? 'Cash basis uses payment_date and includes paid expenses in the payment period.'
-                    : 'Accrual basis uses expense_date and includes expenses in the incurred period.',
+                    ? 'الأساس النقدي يستخدم تاريخ الدفع (payment_date) ويشمل المصروفات المدفوعة في فترة الدفع.'
+                    : 'الأساس الاستحقاقي يستخدم تاريخ المصروف (expense_date) ويشمل المصروفات في فترة تحملها.',
             ],
             'summary' => $this->getSummary($dateFrom, $dateTo, $category, $status, $basis),
             'by_category' => $this->getByCategory($dateFrom, $dateTo, $category, $status, $basis),

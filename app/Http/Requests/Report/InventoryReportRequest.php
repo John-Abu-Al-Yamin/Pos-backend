@@ -40,6 +40,8 @@ class InventoryReportRequest extends FormRequest
             'movement_date_from' => 'nullable|date_format:Y-m-d',
             'movement_date_to' => 'nullable|date_format:Y-m-d|after_or_equal:movement_date_from',
             'movement_type' => 'nullable|string|max:50',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
         ];
     }
 

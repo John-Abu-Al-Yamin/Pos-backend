@@ -73,7 +73,12 @@ class ReportController extends Controller
     public function inventory(InventoryReportRequest $request)
     {
         $this->authorizeReport($request, 'inventory');
-        $data = $this->inventoryReport->generate($request->validated());
+        $filters = $request->validated();
+        $data = $this->inventoryReport->generate(
+            $filters,
+            (int) ($filters['page'] ?? 1),
+            (int) ($filters['per_page'] ?? 15),
+        );
         $data = $this->withReportMetadata($data, $request, 'current_stock_snapshot', 'Inventory value and stock levels are current snapshots; movement summaries use stock_movements.created_at for movement event timing.');
         return \App\Http\Responses\ApiResponse::success(
             message: 'Inventory report generated successfully',
